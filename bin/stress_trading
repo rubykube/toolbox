@@ -26,13 +26,12 @@ program :version,     '1.0.0'
 default_command       :stress
 
 command :stress do |c|
-  c.option '--root-url VALUE', String, 'Comma-separated fiat currencies (minimum 2 are required).'
-  c.option '--currencies VALUE', String, 'Comma-separated fiat currencies (minimum 2 are required).'
-  c.option '--markets VALUE', String, 'Comma-separated list of markets to trade in.'
+  c.option '--root-url VALUE', String, 'Peatio root URL.'
+  c.option '--currencies VALUE', String, 'Comma-separated fiat currencies (at least 2).'
+  c.option '--markets VALUE', String, 'Comma-separated list of markets to trade in (at least 1).'
   c.option '--traders VALUE', Integer, 'Number of traders (at least 2).'
   c.option '--orders VALUE', Integer, 'Number of orders to create.'
-  c.option '--threads VALUE', Integer
-  c.option '--sleep VALUE', String, 'Time to wait between requests in each thread separately.'
+  c.option '--threads VALUE', Integer, 'Concurrency.'
   c.option '--api-v2-jwt-key VALUE', String
   c.option '--api-v2-jwt-algorithm VALUE', String
   c.option '--management-api-v1-jwt-key VALUE', String
@@ -150,12 +149,12 @@ end
 memoize :traders
 
 def amounts
-  (1..10).to_a
+  (1..100).to_a
 end
 memoize :amounts
 
 def prices
-  amounts.map { |x| x / 10.0 }
+  [0.8, 0.9, 1.0, 1.1, 1.2]
 end
 memoize :prices
 
@@ -184,7 +183,7 @@ end
 def increment_number_of_created_orders
   @statistics_mutex.synchronize do
     @created_orders_number += 1
-    if (@created_orders_number % (@orders_number * 0.01).ceil).zero?
+    if (@created_orders_number % [(@orders_number * 0.01).ceil, 100].min).zero?
       seconds = (Time.now.to_f - @launched_at).round(2)
       Kernel.puts "#{@created_orders_number} of #{@orders_number} #{'order'.pluralize(@orders_number)} created (#{seconds} seconds passed)."
     end
