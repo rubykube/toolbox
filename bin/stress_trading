@@ -1,0 +1,247 @@
+#!/usr/bin/env ruby
+
+# encoding: UTF-8
+# frozen_string_literal: true
+
+require 'openssl'
+require 'base64'
+require 'uri'
+require 'securerandom'
+require 'thread'
+require 'bundler'
+Bundler.require :default, :cli
+
+extend Memoist
+
+class Faraday::Response
+  def assert_success!
+    return self if success?
+    raise Faraday::Error, 'Request failed.'
+  end
+end
+
+program :name,        'stress_trading'
+program :description, 'Ruby script for stress testing Peatio trading engine.'
+program :version,     '1.0.0'
+default_command       :stress
+
+command :stress do |c|
+  c.option '--root-url VALUE', String, 'Comma-separated fiat currencies (minimum 2 are required).'
+  c.option '--currencies VALUE', String, 'Comma-separated fiat currencies (minimum 2 are required).'
+  c.option '--markets VALUE', String, 'Comma-separated list of markets to trade in.'
+  c.option '--traders VALUE', Integer, 'Number of traders (at least 2).'
+  c.option '--orders VALUE', Integer, 'Number of orders to create.'
+  c.option '--threads VALUE', Integer
+  c.option '--sleep VALUE', String, 'Time to wait between requests in each thread separately.'
+  c.option '--api-v2-jwt-key VALUE', String
+  c.option '--api-v2-jwt-algorithm VALUE', String
+  c.option '--management-api-v1-jwt-key VALUE', String
+  c.option '--management-api-v1-jwt-signer VALUE', String
+  c.option '--management-api-v1-jwt-algorithm VALUE', String
+  c.action do |args, options|
+    options.default threads: 1
+    configure_root_url(options.root_url)
+    configure_currencies(options.currencies)
+    configure_markets(options.markets)
+    configure_traders_number(options.traders)
+    configure_orders_number(options.orders)
+    configure_threads_number(options.threads)
+    configure_api_v2(options.api_v2_jwt_key, options.api_v2_jwt_algorithm)
+    configure_management_api_v1(options.management_api_v1_jwt_key, options.management_api_v1_jwt_signer, options.management_api_v1_jwt_algorithm)
+    run
+  end
+end
+
+def configure_root_url(root_url)
+  raise ArgumentError, 'Peatio root URL must be provided.' if root_url.blank?
+  @root_url = URI.parse(root_url)
+end
+
+def configure_currencies(currencies)
+  @currencies = currencies.to_s.split(',').map(&:squish).reject(&:blank?)
+  raise ArgumentError, 'At least two fiat currencies must be provided.' if @currencies.count < 2
+end
+
+def configure_markets(markets)
+  @markets = markets.to_s.split(',').map(&:squish).reject(&:blank?)
+  raise ArgumentError, 'At least one market must be provided.' if @markets.count < 1
+end
+
+def configure_traders_number(n)
+  raise ArgumentError, 'Number of traders must be greater than or equal to 2.' if n < 2
+  @traders_number = n
+end
+
+def configure_orders_number(n)
+  @orders_number = n
+end
+
+def configure_threads_number(n)
+  raise ArgumentError, 'Number of threads must be at least 1' if n < 1
+  @threads_number = n
+end
+
+def configure_api_v2(jwt_key, jwt_algorithm)
+  raise ArgumentError, 'API v2 private JWT key is missing.' if jwt_key.blank?
+  raise ArgumentError, 'API v2 JWT algorithm is missing.' if jwt_algorithm.blank?
+  @api_v2_jwt_key       = OpenSSL::PKey.read(Base64.urlsafe_decode64(jwt_key))
+  @api_v2_jwt_algorithm = jwt_algorithm
+end
+
+def configure_management_api_v1(jwt_key, jwt_signer, jwt_algorithm)
+  raise ArgumentError, 'Management API v1 private JWT key is missing.' if jwt_key.blank?
+  raise ArgumentError, 'Management API v1 JWT signer is missing.' if jwt_signer.blank?
+  raise ArgumentError, 'Management API v1 JWT algorithm is missing.' if jwt_algorithm.blank?
+  @management_api_v1_jwt_key       = OpenSSL::PKey.read(Base64.urlsafe_decode64(jwt_key))
+  @management_api_v1_jwt_signer    = jwt_signer
+  @management_api_v1_jwt_algorithm = jwt_algorithm
+end
+
+def unique_email
+  Faker::Internet.unique.email
+end
+
+def unique_uid
+  @used_uids ||= [].to_set
+  loop do
+    uid = "UID#{SecureRandom.hex(5).upcase}"
+    unless @used_uids.include?(uid)
+      @used_uids << uid
+      return uid
+    end
+  end
+end
+
+def api_v2_get(path, query: {}, headers: {}, jwt: nil)
+  headers['Authorization'] = 'Bearer ' + jwt if jwt
+  url = URI.join(@root_url, '/api/v2/', path.gsub(/\A\/+/, ''))
+  Faraday.get(url, query, headers).assert_success!
+end
+
+def api_v2_post(path, data: {}, headers: {}, jwt: nil)
+  headers['Authorization'] = 'Bearer ' + jwt if jwt
+  headers['Content-Type']  = 'application/json'
+  url = URI.join(@root_url, '/api/v2/', path.gsub(/\A\/+/, ''))
+  Faraday.post(url, data.to_json, headers).assert_success!
+end
+
+def api_v2_jwt_for(user, payload = {})
+  payload = payload.dup
+  payload.merge!(user.slice(:email, :uid, :level, :state))
+  payload.reverse_merge! \
+    iat: Time.now.to_i,
+    exp: 5.minutes.from_now.to_i,
+    jti: SecureRandom.uuid,
+    sub: 'session',
+    iss: 'barong',
+    aud: ['peatio']
+  JWT.encode(payload, @api_v2_jwt_key, @api_v2_jwt_algorithm)
+end
+
+def traders
+  Kernel.print "Creating #{@traders_number} #{'trader'.pluralize(@traders_number)}... "
+  @traders_number.times.map do
+    { email: unique_email, uid: unique_uid, level: 3, state: 'active' }.tap do |trader|
+      # Issue GET /api/v2/members/me to register user at Peatio.
+      api_v2_get('/members/me', jwt: api_v2_jwt_for(trader))
+    end
+  end.tap { Kernel.puts 'OK' }
+end
+memoize :traders
+
+def amounts
+  (1..10).to_a
+end
+memoize :amounts
+
+def prices
+  amounts.map { |x| x / 10.0 }
+end
+memoize :prices
+
+def become_billionaire(trader)
+  @currencies.each do |currency|
+    keychain   = { @management_api_v1_jwt_signer => @management_api_v1_jwt_key }
+    algorithms = { @management_api_v1_jwt_signer => @management_api_v1_jwt_algorithm }
+    data       = { uid: trader[:uid], currency: currency, amount: 1_000_000_000, state: :accepted }
+    payload    = { iat:  Time.now.to_i,
+                   exp:  5.minutes.from_now.to_i,
+                   jti:  SecureRandom.uuid,
+                   iss:  @management_api_v1_jwt_signer,
+                   data: data }
+    jwt        = JWT::Multisig.generate_jwt(payload, keychain, algorithms)
+    url = URI.join(@root_url, '/management_api/v1/deposits/new')
+    Faraday.post(url, jwt.to_json, 'Content-Type' => 'application/json').assert_success!
+  end
+end
+
+def initialize_statistics
+  @statistics_mutex      = Mutex.new
+  @launched_at           = Time.now.to_f
+  @created_orders_number = 0
+end
+
+def increment_number_of_created_orders
+  @statistics_mutex.synchronize do
+    @created_orders_number += 1
+    if (@created_orders_number % (@orders_number * 0.01).ceil).zero?
+      seconds = (Time.now.to_f - @launched_at).round(2)
+      Kernel.puts "#{@created_orders_number} of #{@orders_number} #{'order'.pluralize(@orders_number)} created (#{seconds} seconds passed)."
+    end
+  end
+end
+
+def all_orders_created?
+  @statistics_mutex.synchronize do
+    @created_orders_number >= @orders_number
+  end
+end
+
+def install_handlers_for_process_signals
+  @interrupts_received = 0
+  %i[ INT TERM HUP QUIT ].each do |signal|
+    Kernel.trap signal do
+      Kernel.puts '' if signal == :INT
+      Kernel.puts 'Gracefully terminating workers...' unless @terminating
+      @terminating = true
+      next unless signal == :INT
+      if (@interrupts_received += 1) > 1
+        Kernel.exit(-1)
+      else
+        Kernel.puts 'Interrupt again to exit immediately.'
+      end
+    end
+  end
+end
+
+def create_and_run_workers
+  @threads_number.times.map do
+    Thread.new {
+      loop do
+        break if all_orders_created?
+        break if @terminating
+        api_v2_post '/orders', data: {
+          side:   %w[sell buy].sample,
+          market: @markets.sample,
+          volume: amounts.sample,
+          price:  prices.sample
+        }, jwt: api_v2_jwt_for(traders.sample)
+        increment_number_of_created_orders
+      rescue
+        Kernel.puts 'Failed to create order.'
+      end
+    }
+  end.each(&:join)
+end
+
+def run
+  Kernel.puts '' # Add a little padding.
+  traders
+  Kernel.print 'Making each trader billionaire... '
+  traders.each(&method(:become_billionaire))
+  Kernel.puts 'OK'
+
+  initialize_statistics
+  install_handlers_for_process_signals
+  create_and_run_workers
+end

@@ -1,0 +1,6 @@
+*.gem
+.rubocop-*
+.bundle
+/pkg
+/tmp
+/.idea
