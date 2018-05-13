@@ -8,7 +8,10 @@ ARG GID=1000
 
  # Create group "app" and user "app".
 RUN groupadd -r --gid ${GID} app \
- && useradd --system --create-home --home ${APP_HOME} --shell /sbin/nologin --no-log-init --gid ${GID} --uid ${UID} app
+ && useradd --system --create-home --home ${APP_HOME} --shell /sbin/nologin --no-log-init --gid ${GID} --uid ${UID} app \
+ # Install system dependencies.
+ && apt update \
+ && apt install -y less
 
 WORKDIR $APP_HOME
 

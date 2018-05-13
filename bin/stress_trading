@@ -21,7 +21,7 @@ class Faraday::Response
 end
 
 program :name,        'stress_trading'
-program :description, 'Ruby script for stress testing Peatio trading engine. See «bin/stress_trading help run».'
+program :description, 'Ruby script for stress testing Peatio trading engine. See "bin/stress_trading help run".'
 program :version,     '1.0.0'
 default_command       :run
 
@@ -33,10 +33,10 @@ command :run do |c|
   c.option '--orders NUMBER', Integer, 'Number of orders to create.'
   c.option '--threads NUMBER', Integer, 'Concurrency.'
   c.option '--api-v2-jwt-key VALUE', String, 'Private RSA key used for signing JWT in Member API v2. Must be in PEM format URL-safe Base64 encoded.'
-  c.option '--api-v2-jwt-algorithm VALUE', String, 'JWT signing algorithm in Member API v2 (defaults to «RS256»).'
+  c.option '--api-v2-jwt-algorithm VALUE', String, 'JWT signing algorithm in Member API v2 (defaults to "RS256").'
   c.option '--management-api-v1-jwt-key VALUE', String, 'Private RSA key used for signing JWT in Management API v1. Must be in PEM format URL-safe Base64 encoded.'
-  c.option '--management-api-v1-jwt-signer VALUE', String, 'Management API v1 JWT signer name (defaults to «applogic»).'
-  c.option '--management-api-v1-jwt-algorithm VALUE', String, 'JWT signing algorithm in Management API v1 (defaults to «RS256»).'
+  c.option '--management-api-v1-jwt-signer VALUE', String, 'Management API v1 JWT signer name (defaults to "applogic").'
+  c.option '--management-api-v1-jwt-algorithm VALUE', String, 'JWT signing algorithm in Management API v1 (defaults to "RS256").'
   c.action do |args, options|
     options.default threads:                         1,
                     api_v2_jwt_algorithm:            'RS256',
