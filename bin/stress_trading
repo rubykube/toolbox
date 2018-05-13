@@ -21,24 +21,27 @@ class Faraday::Response
 end
 
 program :name,        'stress_trading'
-program :description, 'Ruby script for stress testing Peatio trading engine.'
+program :description, 'Ruby script for stress testing Peatio trading engine. See «bin/stress_trading help run».'
 program :version,     '1.0.0'
-default_command       :stress
+default_command       :run
 
-command :stress do |c|
-  c.option '--root-url VALUE', String, 'Peatio root URL.'
+command :run do |c|
+  c.option '--root-url URL', String, 'Peatio root URL.'
   c.option '--currencies VALUE', String, 'Comma-separated fiat currencies (at least 2).'
   c.option '--markets VALUE', String, 'Comma-separated list of markets to trade in (at least 1).'
-  c.option '--traders VALUE', Integer, 'Number of traders (at least 2).'
-  c.option '--orders VALUE', Integer, 'Number of orders to create.'
-  c.option '--threads VALUE', Integer, 'Concurrency.'
-  c.option '--api-v2-jwt-key VALUE', String
-  c.option '--api-v2-jwt-algorithm VALUE', String
-  c.option '--management-api-v1-jwt-key VALUE', String
-  c.option '--management-api-v1-jwt-signer VALUE', String
-  c.option '--management-api-v1-jwt-algorithm VALUE', String
+  c.option '--traders NUMBER', Integer, 'Number of traders (at least 2).'
+  c.option '--orders NUMBER', Integer, 'Number of orders to create.'
+  c.option '--threads NUMBER', Integer, 'Concurrency.'
+  c.option '--api-v2-jwt-key VALUE', String, 'Private RSA key used for signing JWT in Member API v2. Must be in PEM format URL-safe Base64 encoded.'
+  c.option '--api-v2-jwt-algorithm VALUE', String, 'JWT signing algorithm in Member API v2 (defaults to «RSA256»).'
+  c.option '--management-api-v1-jwt-key VALUE', String, 'Private RSA key used for signing JWT in Management API v1. Must be in PEM format URL-safe Base64 encoded.'
+  c.option '--management-api-v1-jwt-signer VALUE', String, 'Management API v1 JWT signer name (defaults to «applogic»).'
+  c.option '--management-api-v1-jwt-algorithm VALUE', String, 'JWT signing algorithm in Management API v1 (defaults to «RSA256»).'
   c.action do |args, options|
-    options.default threads: 1
+    options.default threads:                         1,
+                    api_v2_jwt_algorithm:            'RSA256',
+                    management_api_v1_jwt_signer:    'applogic',
+                    management_api_v1_jwt_algorithm: 'RSA256'
     configure_root_url(options.root_url)
     configure_currencies(options.currencies)
     configure_markets(options.markets)
@@ -154,7 +157,7 @@ end
 memoize :amounts
 
 def prices
-  [0.8, 0.9, 1.0, 1.1, 1.2]
+  [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
 end
 memoize :prices
 
@@ -180,12 +183,14 @@ def initialize_statistics
   @created_orders_number = 0
 end
 
-def increment_number_of_created_orders
+def order_created
   @statistics_mutex.synchronize do
     @created_orders_number += 1
-    if (@created_orders_number % [(@orders_number * 0.01).ceil, 100].min).zero?
+    n    = @created_orders_number
+    step = [(@orders_number * 0.01).ceil, 100].min
+    if (n % step).zero?
       seconds = (Time.now.to_f - @launched_at).round(2)
-      Kernel.puts "#{@created_orders_number} of #{@orders_number} #{'order'.pluralize(@orders_number)} created (#{seconds} seconds passed)."
+      Kernel.puts "#{n} of #{@orders_number} #{'order'.pluralize(@orders_number)} created (#{seconds} seconds passed)."
     end
   end
 end
@@ -225,7 +230,7 @@ def create_and_run_workers
           volume: amounts.sample,
           price:  prices.sample
         }, jwt: api_v2_jwt_for(traders.sample)
-        increment_number_of_created_orders
+        order_created
       rescue
         Kernel.puts 'Failed to create order.'
       end
