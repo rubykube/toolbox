@@ -5,7 +5,7 @@ default: build
 
 build:
 	echo '>Building the toolbox Docker image...'
-	docker build -t $(IMAGE)
+	docker build -t $(IMAGE) .
 
 push:
 	docker push $(IMAGE)
