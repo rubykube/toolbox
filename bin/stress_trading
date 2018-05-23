@@ -108,6 +108,26 @@ command :run do |c|
   end
 end
 
+def print_options
+  options = {
+    'Root URL' => @root_url.to_s,
+    'Currencies' => @currencies.map(&:upcase).join(', '),
+    'Markets' => @markets.map(&:upcase).join(', '),
+    'Number of simultaneous traders' =>  @traders_number,
+    'Number of orders to create' => @orders_number,
+    'Number of simultaneous requests' => @threads_number,
+    'Minimum order volume' => @min_volume,
+    'Maximum order volume' => @min_volume,
+    'Order volume step' => @volume_step,
+    'Minimum order price' => @min_price,
+    'Maximum order price' => @min_price,
+    'Order price step' => @price_step }
+  length = options.keys.map(&:length).max
+  options.each do |option, value|
+    Kernel.puts "#{(option + ':').ljust(length + 1)} #{value}"
+  end
+end
+
 def configure_root_url(root_url)
   raise ArgumentError, 'Peatio root URL must be provided.' if root_url.blank?
   @root_url = URI.parse(root_url)
@@ -325,6 +345,8 @@ def run
   @created_orders_number = 0
 
   Kernel.puts '' # Add a little padding.
+  print_options
+  Kernel.puts ''
   traders
   Kernel.print 'Making each trader billionaire... '
   traders.each(&method(:become_billionaire))
