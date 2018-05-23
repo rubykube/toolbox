@@ -225,12 +225,6 @@ def become_billionaire(trader)
   end
 end
 
-def initialize_statistics
-  @statistics_mutex      = Mutex.new
-  @launched_at           = Time.now.to_f
-  @created_orders_number = 0
-end
-
 def order_created
   @statistics_mutex.synchronize do
     @created_orders_number += 1
@@ -287,13 +281,17 @@ def create_and_run_workers
 end
 
 def run
+  @statistics_mutex      = Mutex.new
+  @created_orders_number = 0
+
   Kernel.puts '' # Add a little padding.
   traders
   Kernel.print 'Making each trader billionaire... '
   traders.each(&method(:become_billionaire))
   Kernel.puts 'OK'
 
-  initialize_statistics
   install_handlers_for_process_signals
+  @launched_at = Time.now.to_f
   create_and_run_workers
+  Kernel.puts "#{(@created_orders_number / (Time.now.to_f - @launched_at)).round(2)} orders per second."
 end
