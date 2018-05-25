@@ -83,6 +83,7 @@ command :run do |c|
   c.option '--management-api-v1-jwt-key VALUE', String, 'Private RSA key used for signing JWT in Management API v1. Must be in PEM format URL-safe Base64 encoded.'
   c.option '--management-api-v1-jwt-signer VALUE', String, 'Management API v1 JWT signer name (defaults to "applogic").'
   c.option '--management-api-v1-jwt-algorithm VALUE', String, 'JWT signing algorithm in Management API v1 (defaults to "RS256").'
+  c.option '--report-yaml VALUE', String, 'Path to store a report in YAML format'
   c.action do |args, options|
     options.default threads:                         1,
                     api_v2_jwt_algorithm:            'RS256',
@@ -105,6 +106,9 @@ command :run do |c|
     configure_api_v2(options.api_v2_jwt_key, options.api_v2_jwt_algorithm)
     configure_management_api_v1(options.management_api_v1_jwt_key, options.management_api_v1_jwt_signer, options.management_api_v1_jwt_algorithm)
     run
+    compute_report
+    output_report_yaml(options.report_yaml)
+    Kernel.puts "%.2f orders per second." % [@report['results']['ops']]
   end
 end
 
@@ -121,7 +125,8 @@ def print_options
     'Order volume step' => @volume_step,
     'Minimum order price' => @min_price,
     'Maximum order price' => @max_price,
-    'Order price step' => @price_step }
+    'Order price step' => @price_step,
+  }
   length = options.keys.map(&:length).max
   options.each do |option, value|
     Kernel.puts "#{(option + ':').ljust(length + 1)} #{value}"
@@ -340,6 +345,37 @@ def create_and_run_workers
   end.each(&:join)
 end
 
+def compute_report
+  ops = @created_orders_number / (Time.now.to_f - @launched_at)
+
+  @report = {
+    'options' => {
+      'root_url' => @root_url.to_s,
+      'currencies' => @currencies.map(&:upcase).join(', '),
+      'markets' => @markets.map(&:upcase).join(', '),
+      'nb_concurent_traders' =>  @traders_number,
+      'total_orders' => @orders_number,
+      'nb_concurent_orders' => @threads_number,
+      'min_volume' => @min_volume,
+      'max_volume' => @min_volume,
+      'volume_stop' => @volume_step,
+      'min_price' => @min_price,
+      'max_price' => @max_price,
+      'price_step' => @price_step,
+    },
+    'results' => {
+      'ops' => ops
+    },
+  }
+end
+
+def output_report_yaml(filename)
+  return unless filename
+  File.open(filename, "w") do |f|
+    f.puts YAML.dump(@report)
+  end
+end
+
 def run
   @statistics_mutex      = Mutex.new
   @created_orders_number = 0
@@ -355,5 +391,4 @@ def run
   install_handlers_for_process_signals
   @launched_at = Time.now.to_f
   create_and_run_workers
-  Kernel.puts "#{(@created_orders_number / (Time.now.to_f - @launched_at)).round(2)} orders per second."
 end
