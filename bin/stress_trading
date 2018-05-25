@@ -292,8 +292,9 @@ def become_billionaire(trader)
   end
 end
 
-def order_created
+def order_created(time)
   @statistics_mutex.synchronize do
+    @times << time
     @created_orders_number += 1
     n    = @created_orders_number
     step = [(@orders_number * 0.01).ceil, 100].min
@@ -333,13 +334,15 @@ def create_and_run_workers
       loop do
         break if all_orders_created?
         break if @terminating
+        time_before = Time.now
         api_v2_post '/orders', data: {
           side:   %w[sell buy].sample,
           market: @markets.sample,
           volume: volumes.sample.to_s,
           price:  prices.sample.to_s
         }, jwt: api_v2_jwt_for(traders.sample)
-        order_created
+        time_after = Time.now
+        order_created(time_after.to_f - time_before.to_f)
       rescue => e
         Kernel.puts e.inspect
       end
@@ -368,7 +371,12 @@ def compute_report
       'completed_at' => @completed_at,
     },
     'results' => {
-      'ops' => ops
+      'ops' => ops,
+      'times' => {
+        'min' => @times.min,
+        'max' => @times.max,
+        'avg' => @times.inject(:+) / @times.size,
+      }
     },
   }
 end
@@ -384,6 +392,7 @@ end
 def run
   @statistics_mutex      = Mutex.new
   @created_orders_number = 0
+  @times = []
 
   Kernel.puts '' # Add a little padding.
   print_options
