@@ -94,7 +94,9 @@ command :run do |c|
                     volume_step:                     1.0,
                     min_price:                       0.5,
                     max_price:                       1.5,
-                    price_step:                      0.1
+                    price_step:                      0.1,
+                    report_yaml:                     "report-#{ Time.now.strftime("%F-%H%M%S") }.yml"
+
     configure_root_url(options.root_url)
     configure_currencies(options.currencies)
     configure_markets(options.markets)
@@ -296,7 +298,7 @@ def order_created
     n    = @created_orders_number
     step = [(@orders_number * 0.01).ceil, 100].min
     if (n % step).zero?
-      seconds = (Time.now.to_f - @launched_at).round(2)
+      seconds = (Time.now.to_f - @launched_at.to_f).round(2)
       Kernel.puts "#{n} of #{@orders_number} #{'order'.pluralize(@orders_number)} created (#{seconds} seconds passed)."
     end
   end
@@ -346,13 +348,13 @@ def create_and_run_workers
 end
 
 def compute_report
-  ops = @created_orders_number / (Time.now.to_f - @launched_at)
+  ops = @created_orders_number / (Time.now.to_f - @launched_at.to_f)
 
   @report = {
     'options' => {
       'root_url' => @root_url.to_s,
-      'currencies' => @currencies.map(&:upcase).join(', '),
-      'markets' => @markets.map(&:upcase).join(', '),
+      'currencies' => @currencies.map(&:upcase),
+      'markets' => @markets.map(&:upcase),
       'nb_concurent_traders' =>  @traders_number,
       'total_orders' => @orders_number,
       'nb_concurent_orders' => @threads_number,
@@ -362,6 +364,8 @@ def compute_report
       'min_price' => @min_price,
       'max_price' => @max_price,
       'price_step' => @price_step,
+      'started_at' => @launched_at,
+      'completed_at' => @completed_at,
     },
     'results' => {
       'ops' => ops
@@ -374,6 +378,7 @@ def output_report_yaml(filename)
   File.open(filename, "w") do |f|
     f.puts YAML.dump(@report)
   end
+  puts "Report output to #{ filename }"
 end
 
 def run
@@ -389,6 +394,7 @@ def run
   Kernel.puts 'OK'
 
   install_handlers_for_process_signals
-  @launched_at = Time.now.to_f
+  @launched_at = Time.now
   create_and_run_workers
+  @completed_at = Time.now
 end
