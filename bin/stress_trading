@@ -117,10 +117,10 @@ def print_options
     'Number of orders to create' => @orders_number,
     'Number of simultaneous requests' => @threads_number,
     'Minimum order volume' => @min_volume,
-    'Maximum order volume' => @min_volume,
+    'Maximum order volume' => @max_volume,
     'Order volume step' => @volume_step,
     'Minimum order price' => @min_price,
-    'Maximum order price' => @min_price,
+    'Maximum order price' => @max_price,
     'Order price step' => @price_step }
   length = options.keys.map(&:length).max
   options.each do |option, value|
