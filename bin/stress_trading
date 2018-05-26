@@ -294,7 +294,10 @@ end
 
 def order_created(time)
   @statistics_mutex.synchronize do
-    @times << time
+    @times_min = time if @times_min.nil? or @times_min > time
+    @times_max = time if @times_max.nil? or @times_max < time
+    @times_count += 1
+    @times_total += time
     @created_orders_number += 1
     n    = @created_orders_number
     step = [(@orders_number * 0.01).ceil, 100].min
@@ -373,9 +376,9 @@ def compute_report
     'results' => {
       'ops' => ops,
       'times' => {
-        'min' => @times.min,
-        'max' => @times.max,
-        'avg' => @times.inject(:+) / @times.size,
+        'min' => @times_min,
+        'max' => @times_max,
+        'avg' => @times_total / @times_count,
       }
     },
   }
@@ -392,7 +395,7 @@ end
 def run
   @statistics_mutex      = Mutex.new
   @created_orders_number = 0
-  @times = []
+  @times_min, @times_max, @times_count, @times_total = nil, nil, 0, 0.0
 
   Kernel.puts '' # Add a little padding.
   print_options
