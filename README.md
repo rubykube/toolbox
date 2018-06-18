@@ -14,3 +14,20 @@ docker run -it --rm rubykube/toolbox bin/stress_trading --root-url http://peatio
 ```
 
 The command above creates 10 traders each with 1 billion UAH, USD & USD. Then it opens 1000 new orders in UAHUSD, UAHEUR markets using 10 threads (parallel).
+
+## Order matching Peatio testing
+
+See help pages:
+
+* `docker run -it --rm rubykube/toolbox bin/order_matching help`.
+
+* `docker run -it --rm rubykube/toolbox bin/order_matching help run`.
+
+Usage example:
+```sh
+docker run -it --rm rubykube/toolbox bin/order_matching --root-url http://peatio.trade --api-v2-jwt-key KEY --management-api-v1-jwt-key KEY --trades 10 --trade_wait_time 2 --report-yaml results.yml
+```
+
+The command above creates 2 traders each with 1 billion UAH, USD.
+Then it opens 1 sell order for first trades and 10 buy orders for second trader in UAHUSD market
+and calculates time beetween buy order and created trade

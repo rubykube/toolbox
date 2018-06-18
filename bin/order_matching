@@ -1,0 +1,338 @@
+#!/usr/bin/env ruby
+
+# encoding: UTF-8
+# frozen_string_literal: true
+
+require 'openssl'
+require 'base64'
+require 'uri'
+require 'securerandom'
+require 'thread'
+require 'bundler'
+Bundler.require :default, :cli
+
+extend Memoist
+
+module Faraday
+  class Env
+    attr_reader :request_body
+  end
+
+  class Connection
+    alias original_run_request run_request
+
+    def run_request(method, url, body, headers, &block)
+      original_run_request(method, url, body, headers, &block).tap do |response|
+        response.env.instance_variable_set :@request_body, body if body
+      end
+    end
+  end
+
+  class Response
+    def assert_success!
+      return self if success?
+      raise Faraday::Error, describe
+    end
+
+    def describe
+      ["-- HTTP #{status} #{reason_phrase} --",
+       "",
+       "-- Request URL --",
+       env.url.to_s,
+       "",
+       "-- Request Method --",
+       env.method.to_s.upcase,
+       "",
+       "-- Request headers --",
+       env.request_headers.to_json,
+       "",
+       "-- Request body --",
+       env.request_body.to_s,
+       "",
+       "-- Response headers --",
+       env.response_headers.to_json,
+       "",
+       "-- Response body --",
+       env.body.to_s,
+       ""
+      ].join("\n")
+    end
+  end
+end
+
+program :name,        'order_matching'
+program :description, 'Ruby script for order matching testing Peatio trading engine. See "bin/order_matching help run".'
+program :version,     '1.0.0'
+default_command       :run
+
+command :run do |c|
+  c.option '--root-url URL', String, 'Peatio root URL.'
+  c.option '--currencies VALUE', String, 'Comma-separated fiat currencies (at least 2).'
+  c.option '--markets VALUE', String, 'Comma-separated list of markets to trade in (at least 1).'
+  c.option '--trades VALUE', String, 'Number of trades'
+  c.option '--trade_wait_time VALUE', String, 'Wait time in seconds before check trade'
+  c.option '--api-v2-jwt-key VALUE', String, 'Private RSA key used for signing JWT in Member API v2. Must be in PEM format URL-safe Base64 encoded.'
+  c.option '--api-v2-jwt-algorithm VALUE', String, 'JWT signing algorithm in Member API v2 (defaults to "RS256").'
+  c.option '--management-api-v1-jwt-key VALUE', String, 'Private RSA key used for signing JWT in Management API v1. Must be in PEM format URL-safe Base64 encoded.'
+  c.option '--management-api-v1-jwt-signer VALUE', String, 'Management API v1 JWT signer name (defaults to "applogic").'
+  c.option '--management-api-v1-jwt-algorithm VALUE', String, 'JWT signing algorithm in Management API v1 (defaults to "RS256").'
+  c.option '--report-yaml VALUE', String, 'Path to store a report in YAML format'
+  c.action do |args, options|
+    options.default trade_wait_time:                  5,
+                    trades:                           2,
+                    currencies:                      'uah,usd',
+                    markets:                         'uahusd',
+                    api_v2_jwt_algorithm:            'RS256',
+                    management_api_v1_jwt_signer:    'applogic',
+                    management_api_v1_jwt_algorithm: 'RS256',
+                    report_yaml:                     "report-#{ Time.now.strftime("%F-%H%M%S") }.yml"
+
+    configure_root_url(options.root_url)
+    configure_trades(trades: options.trades, trade_wait_time: options.trade_wait_time)
+    configure_currencies(options.currencies)
+    configure_markets(options.markets)
+    configure_traders_number(2)
+    configure_api_v2(options.api_v2_jwt_key, options.api_v2_jwt_algorithm)
+    configure_management_api_v1(options.management_api_v1_jwt_key, options.management_api_v1_jwt_signer, options.management_api_v1_jwt_algorithm)
+    run
+    output_report_yaml(options.report_yaml)
+    Kernel.puts "Finished"
+  end
+end
+
+def print_options
+  options = {
+    'Root URL' => @root_url.to_s,
+    'Currencies' => @currencies.map(&:upcase).join(', '),
+    'Markets' => @markets.map(&:upcase).join(', '),
+    'Trades' => @trades
+  }
+  length = options.keys.map(&:length).max
+  options.each do |option, value|
+    Kernel.puts "#{(option + ':').ljust(length + 1)} #{value}"
+  end
+end
+
+def configure_root_url(root_url)
+  raise ArgumentError, 'Peatio root URL must be provided.' if root_url.blank?
+  @root_url = URI.parse(root_url)
+end
+
+def configure_trades(trades:, trade_wait_time:)
+  @trades = trades.to_i
+  @trade_wait_time = trade_wait_time.to_i
+end
+
+def configure_currencies(currencies)
+  @currencies = currencies.to_s.split(',').map(&:squish).reject(&:blank?)
+  raise ArgumentError, 'At least two fiat currencies must be provided.' if @currencies.count < 2
+end
+
+def configure_markets(markets)
+  @markets = markets.to_s.split(',').map(&:squish).reject(&:blank?)
+  raise ArgumentError, 'At least one market must be provided.' if @markets.count < 1
+end
+
+def configure_traders_number(n)
+  raise ArgumentError, 'Number of traders must be greater than or equal to 2.' if n < 2
+  @traders_number = n
+end
+
+def configure_api_v2(jwt_key, jwt_algorithm)
+  raise ArgumentError, 'API v2 private JWT key is missing.' if jwt_key.blank?
+  raise ArgumentError, 'API v2 JWT algorithm is missing.' if jwt_algorithm.blank?
+  @api_v2_jwt_key       = OpenSSL::PKey.read(Base64.urlsafe_decode64(jwt_key))
+  @api_v2_jwt_algorithm = jwt_algorithm
+end
+
+def configure_management_api_v1(jwt_key, jwt_signer, jwt_algorithm)
+  raise ArgumentError, 'Management API v1 private JWT key is missing.' if jwt_key.blank?
+  raise ArgumentError, 'Management API v1 JWT signer is missing.' if jwt_signer.blank?
+  raise ArgumentError, 'Management API v1 JWT algorithm is missing.' if jwt_algorithm.blank?
+  @management_api_v1_jwt_key       = OpenSSL::PKey.read(Base64.urlsafe_decode64(jwt_key))
+  @management_api_v1_jwt_signer    = jwt_signer
+  @management_api_v1_jwt_algorithm = jwt_algorithm
+end
+
+def unique_email
+  Faker::Internet.unique.email
+end
+
+def unique_uid
+  @used_uids ||= [].to_set
+  loop do
+    uid = "UID#{SecureRandom.hex(5).upcase}"
+    unless @used_uids.include?(uid)
+      @used_uids << uid
+      return uid
+    end
+  end
+end
+
+def api_v2_get(path, query: {}, headers: {}, jwt: nil)
+  headers['Authorization'] = 'Bearer ' + jwt if jwt
+  url = URI.join(@root_url, '/api/v2/', path.gsub(/\A\/+/, ''))
+  Faraday.get(url, query, headers).assert_success!
+end
+
+def api_v2_post(path, data: {}, headers: {}, jwt: nil)
+  headers['Authorization'] = 'Bearer ' + jwt if jwt
+  headers['Content-Type']  = 'application/json'
+  url = URI.join(@root_url, '/api/v2/', path.gsub(/\A\/+/, ''))
+  Faraday.post(url, data.to_json, headers).assert_success!
+end
+
+def api_v2_jwt_for(user, payload = {})
+  payload = payload.dup
+  payload.merge!(user.slice(:email, :uid, :level, :state))
+  payload.reverse_merge! \
+    iat: Time.now.to_i,
+    exp: 5.minutes.from_now.to_i,
+    jti: SecureRandom.uuid,
+    sub: 'session',
+    iss: 'barong',
+    aud: ['peatio']
+  JWT.encode(payload, @api_v2_jwt_key, @api_v2_jwt_algorithm)
+end
+
+def traders
+  Kernel.print "Creating #{@traders_number} #{'trader'.pluralize(@traders_number)}... "
+  @traders_number.times.map do
+    { email: unique_email, uid: unique_uid, level: 3, state: 'active' }.tap do |trader|
+      # Issue GET /api/v2/members/me to register user at Peatio.
+      api_v2_get('/members/me', jwt: api_v2_jwt_for(trader))
+    end
+  end.tap { Kernel.puts 'OK' }
+end
+memoize :traders
+
+def become_billionaire(trader)
+  @currencies.each do |currency|
+    keychain   = { @management_api_v1_jwt_signer => @management_api_v1_jwt_key }
+    algorithms = { @management_api_v1_jwt_signer => @management_api_v1_jwt_algorithm }
+    data       = { uid: trader[:uid], currency: currency, amount: 1_000_000_000, state: :accepted }
+    payload    = { iat:  Time.now.to_i,
+                   exp:  5.minutes.from_now.to_i,
+                   jti:  SecureRandom.uuid,
+                   iss:  @management_api_v1_jwt_signer,
+                   data: data }
+    jwt        = JWT::Multisig.generate_jwt(payload, keychain, algorithms)
+    url = URI.join(@root_url, '/management_api/v1/deposits/new')
+    Faraday.post(url, jwt.to_json, 'Content-Type' => 'application/json').assert_success!
+  end
+end
+
+def install_handlers_for_process_signals
+  @interrupts_received = 0
+  %i[ INT TERM HUP QUIT ].each do |signal|
+    Kernel.trap signal do
+      Kernel.puts '' if signal == :INT
+      Kernel.puts 'Gracefully terminating workers...' unless @terminating
+      @terminating = true
+      next unless signal == :INT
+      if (@interrupts_received += 1) > 1
+        Kernel.exit(-1)
+      else
+        Kernel.puts 'Interrupt again to exit immediately.'
+      end
+    end
+  end
+end
+
+def create_order(data:, trader:)
+  result = api_v2_post '/orders', data: data, jwt: api_v2_jwt_for(trader)
+  JSON.parse result.body
+end
+
+def get_trades
+  trades = api_v2_get '/trades', query: { market: @markets.first }
+  JSON.parse(trades.body)
+end
+
+def create_buy_trade
+  take_order = create_order(data: {
+    side:   'buy',
+    market: @markets.first,
+    volume: '10',
+    price:  '2'
+  }, trader: traders.last)
+  take_order_time = take_order["created_at"].to_time
+  trade_creation_time = 0
+
+  sleep @trade_wait_time
+  trade = get_trades.first
+  trade_creation_time = trade["created_at"].to_time if trade
+  order_matching_time = trade_creation_time.to_f - take_order_time.to_f
+
+  result = {
+    take_order_time: take_order_time,
+    trade_creation_time: trade_creation_time,
+    order_matching_time: order_matching_time
+  }
+
+  @times_min = order_matching_time if @times_min.nil? or @times_min > order_matching_time
+  @times_max = order_matching_time if @times_max.nil? or @times_max < order_matching_time
+  @times_count += 1
+  @times_total += order_matching_time
+  @current_trade += 1
+
+  @report[:trades] << result
+
+  Kernel.puts "Trade #{@current_trade} created"
+
+end
+
+def create_and_run_workers
+  @report = {
+    trades: [],
+    result: {}
+  }
+
+  Kernel.puts "Creating sell order on volume 1 000 000 with price 2 on market #{@markets.first}"
+
+  create_order(data: {
+    side:   'sell',
+    market: @markets.first,
+    volume: '1_000_000',
+    price:  '2'
+  }, trader: traders.first)
+
+  Kernel.puts "Creating #{@trades} buy orders on volume 10 with price 2 on market #{@markets.first}"
+
+  @trades.times { create_buy_trade }
+
+  @report[:result] = {
+    'min' => @times_min,
+    'max' => @times_max,
+    'avg' => @times_total / @times_count
+  }
+
+  Kernel.puts "Result"
+  Kernel.puts @report
+rescue => e
+  Kernel.puts e.inspect
+end
+
+def output_report_yaml(filename)
+  return unless filename
+  File.open(filename, "w") do |f|
+    f.puts YAML.dump(@report)
+  end
+  puts "Report output to #{ filename }"
+end
+
+def run
+  @times_min, @times_max, @times_count, @times_total = nil, nil, 0, 0.0
+  @current_trade = 0
+
+  Kernel.puts '' # Add a little padding.
+  print_options
+  Kernel.puts ''
+  traders
+  Kernel.print 'Making each trader billionaire... '
+  traders.each(&method(:become_billionaire))
+  Kernel.puts 'OK'
+
+  install_handlers_for_process_signals
+  create_and_run_workers
+end
