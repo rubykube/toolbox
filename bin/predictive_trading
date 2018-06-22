@@ -1,0 +1,381 @@
+#!/usr/bin/env ruby
+
+# encoding: UTF-8
+# frozen_string_literal: true
+
+require 'openssl'
+require 'base64'
+require 'uri'
+require 'securerandom'
+require 'bundler'
+require 'pry-byebug'
+Bundler.require :default, :cli
+
+extend Memoist
+
+module Faraday
+  class Env
+    attr_reader :request_body
+  end
+
+  class Connection
+    alias original_run_request run_request
+
+    def run_request(method, url, body, headers, &block)
+      original_run_request(method, url, body, headers, &block).tap do |response|
+        response.env.instance_variable_set :@request_body, body if body
+      end
+    end
+  end
+
+  class Response
+    def assert_success!
+      return self if success?
+      raise Faraday::Error, describe
+    end
+
+    def describe
+      ["-- HTTP #{status} #{reason_phrase} --",
+       "",
+       "-- Request URL --",
+       env.url.to_s,
+       "",
+       "-- Request Method --",
+       env.method.to_s.upcase,
+       "",
+       "-- Request headers --",
+       env.request_headers.to_json,
+       "",
+       "-- Request body --",
+       env.request_body.to_s,
+       "",
+       "-- Response headers --",
+       env.response_headers.to_json,
+       "",
+       "-- Response body --",
+       env.body.to_s,
+       ""
+      ].join("\n")
+    end
+  end
+end
+
+program :name,        'predictive_trading'
+program :description, 'Ruby script for predictive Peatio trading engine testing. See "bin/predictive_trading help run".'
+program :version,     '1.0.0'
+default_command       :run
+
+command :run do |c|
+  c.option '--root-url URL', String, 'Peatio root URL.'
+  c.option '--currencies VALUE', String, 'Comma-separated two fiat currencies.'
+  c.option '--market VALUE', String, 'Market where orders will be created.'
+  c.option '--traders NUMBER', Integer, 'Number of traders (at least 2).'
+  c.option '--orders NUMBER', Integer, 'Number of orders to create.'
+  c.option '--threads NUMBER', Integer, 'Number of simultaneous requests.'
+  c.option '--order-volume NUMBER', Float, 'The volume of order both bid and ask (defaults to 1.0).'
+  c.option '--order-price NUMBER', Float, 'The price of order both bid and ask (defaults to 1.0).'
+  c.option '--api-v2-jwt-key VALUE', String, 'Private RSA key used for signing JWT in Member API v2. Must be in PEM format URL-safe Base64 encoded.'
+  c.option '--api-v2-jwt-algorithm VALUE', String, 'JWT signing algorithm in Member API v2 (defaults to "RS256").'
+  c.option '--management-api-v1-jwt-key VALUE', String, 'Private RSA key used for signing JWT in Management API v1. Must be in PEM format URL-safe Base64 encoded.'
+  c.option '--management-api-v1-jwt-signer VALUE', String, 'Management API v1 JWT signer name (defaults to "applogic").'
+  c.option '--management-api-v1-jwt-algorithm VALUE', String, 'JWT signing algorithm in Management API v1 (defaults to "RS256").'
+  c.option '--report-yaml VALUE', String, 'Path to store a report in YAML format.'
+  c.action do |args, options|
+    options.default threads:                         1,
+                    api_v2_jwt_algorithm:            'RS256',
+                    management_api_v1_jwt_signer:    'applogic',
+                    management_api_v1_jwt_algorithm: 'RS256',
+                    order_volume:                      1.0,
+                    order_price:                       1.0,
+                    report_yaml:                     "report-#{ Time.now.strftime("%F-%H%M%S") }.yml"
+    configure_root_url(options.root_url)
+    configure_currencies(options.currencies)
+    configure_market(options.market)
+    configure_traders_number(options.traders)
+    configure_orders_number(options.orders)
+    configure_threads_number(options.threads)
+    configure_volume(options.order_volume)
+    configure_price(options.order_price)
+    configure_api_v2(options.api_v2_jwt_key, options.api_v2_jwt_algorithm)
+    configure_management_api_v1(options.management_api_v1_jwt_key, options.management_api_v1_jwt_signer, options.management_api_v1_jwt_algorithm)
+    run
+    compute_report
+    output_report_yaml(options.report_yaml)
+    Kernel.puts "%.2f orders per second." % [@report['results']['ops']]
+  end
+end
+
+def print_options
+  options = {
+      'Root URL' => @root_url.to_s,
+      'Currencies' => @currencies.map(&:upcase).join(', '),
+      'Market' => @market.upcase,
+      'Number of simultaneous traders' =>  @traders_number,
+      'Number of orders to create' => @orders_number,
+      'Number of simultaneous requests' => @threads_number,
+      'Minimum order volume' => @min_volume,
+      'Maximum order volume' => @max_volume,
+      'Order volume step' => @volume_step,
+      'Minimum order price' => @min_price,
+      'Maximum order price' => @max_price,
+      'Order price step' => @price_step,
+  }
+  length = options.keys.map(&:length).max
+  options.each do |option, value|
+    Kernel.puts "#{(option + ':').ljust(length + 1)} #{value}"
+  end
+end
+
+def configure_root_url(root_url)
+  raise ArgumentError, 'Peatio root URL must be provided.' if root_url.blank?
+  @root_url = URI.parse(root_url)
+end
+
+def configure_currencies(currencies)
+  @currencies = currencies.to_s.split(',').map(&:squish).reject(&:blank?)
+  raise ArgumentError, 'Two fiat currencies must be provided.' if @currencies.count != 2
+end
+
+def configure_market(market)
+  @market = market
+end
+
+def configure_traders_number(n)
+  raise ArgumentError, 'Number of traders must be greater than or equal to 2.' if n < 2
+  @traders_number = n
+end
+
+def configure_orders_number(n)
+  raise ArgumentError, 'Orders number should be even number' unless n.even?
+  @orders_number = n
+end
+
+def configure_threads_number(n)
+  raise ArgumentError, 'Number of threads must be at least 1' if n < 1
+  @threads_number = n
+end
+
+def configure_volume(order_volume)
+  raise ArgumentError, 'The value of order volume must be greater than zero.' if order_volume < 0.0
+  @order_volume = order_volume
+end
+
+def configure_price(order_price)
+  raise ArgumentError, 'The value of price step must be greater than zero.' if order_price < 0.0
+  @order_price = order_price
+end
+
+def configure_api_v2(jwt_key, jwt_algorithm)
+  raise ArgumentError, 'API v2 private JWT key is missing.' if jwt_key.blank?
+  raise ArgumentError, 'API v2 JWT algorithm is missing.' if jwt_algorithm.blank?
+  @api_v2_jwt_key       = OpenSSL::PKey.read(Base64.urlsafe_decode64(jwt_key))
+  @api_v2_jwt_algorithm = jwt_algorithm
+end
+
+def configure_management_api_v1(jwt_key, jwt_signer, jwt_algorithm)
+  raise ArgumentError, 'Management API v1 private JWT key is missing.' if jwt_key.blank?
+  raise ArgumentError, 'Management API v1 JWT signer is missing.' if jwt_signer.blank?
+  raise ArgumentError, 'Management API v1 JWT algorithm is missing.' if jwt_algorithm.blank?
+  @management_api_v1_jwt_key       = OpenSSL::PKey.read(Base64.urlsafe_decode64(jwt_key))
+  @management_api_v1_jwt_signer    = jwt_signer
+  @management_api_v1_jwt_algorithm = jwt_algorithm
+end
+
+def unique_email
+  Faker::Internet.unique.email
+end
+
+def unique_uid
+  @used_uids ||= [].to_set
+  loop do
+    uid = "UID#{SecureRandom.hex(5).upcase}"
+    unless @used_uids.include?(uid)
+      @used_uids << uid
+      return uid
+    end
+  end
+end
+
+def api_v2_get(path, query: {}, headers: {}, jwt: nil)
+  headers['Authorization'] = 'Bearer ' + jwt if jwt
+  url = URI.join(@root_url, '/api/v2/', path.gsub(/\A\/+/, ''))
+  Faraday.get(url, query, headers).assert_success!
+end
+
+def api_v2_post(path, data: {}, headers: {}, jwt: nil)
+  headers['Authorization'] = 'Bearer ' + jwt if jwt
+  headers['Content-Type']  = 'application/json'
+  url = URI.join(@root_url, '/api/v2/', path.gsub(/\A\/+/, ''))
+  Faraday.post(url, data.to_json, headers).assert_success!
+end
+
+def api_v2_jwt_for(user, payload = {})
+  payload = payload.dup
+  payload.merge!(user.slice(:email, :uid, :level, :state))
+  payload.reverse_merge! \
+    iat: Time.now.to_i,
+    exp: 5.minutes.from_now.to_i,
+    jti: SecureRandom.uuid,
+    sub: 'session',
+    iss: 'barong',
+    aud: ['peatio']
+  JWT.encode(payload, @api_v2_jwt_key, @api_v2_jwt_algorithm)
+end
+
+def traders
+  Kernel.print "Creating #{@traders_number} #{'trader'.pluralize(@traders_number)}... "
+  @traders_number.times.map do
+    { email: unique_email, uid: unique_uid, level: 3, state: 'active' }.tap do |trader|
+      # Issue GET /api/v2/members/me to register user at Peatio.
+      api_v2_get('/members/me', jwt: api_v2_jwt_for(trader))
+    end
+  end.tap { Kernel.puts 'OK' }
+end
+memoize :traders
+
+def become_billionaire(trader)
+  @currencies.each do |currency|
+    keychain   = { @management_api_v1_jwt_signer => @management_api_v1_jwt_key }
+    algorithms = { @management_api_v1_jwt_signer => @management_api_v1_jwt_algorithm }
+    data       = { uid: trader[:uid], currency: currency, amount: 1_000_000_000, state: :accepted }
+    payload    = { iat:  Time.now.to_i,
+                   exp:  5.minutes.from_now.to_i,
+                   jti:  SecureRandom.uuid,
+                   iss:  @management_api_v1_jwt_signer,
+                   data: data }
+    jwt        = JWT::Multisig.generate_jwt(payload, keychain, algorithms)
+    url = URI.join(@root_url, '/management_api/v1/deposits/new')
+    Faraday.post(url, jwt.to_json, 'Content-Type' => 'application/json').assert_success!
+  end
+end
+
+def order_created(time)
+  @statistics_mutex.synchronize do
+    @times_min = time if @times_min.nil? or @times_min > time
+    @times_max = time if @times_max.nil? or @times_max < time
+    @times_count += 1
+    @times_total += time
+    step = [(@orders_number * 0.01).ceil, 100].min
+    if (created_orders_number % step).zero?
+      seconds = (Time.now.to_f - @launched_at.to_f).round(2)
+      Kernel.puts "#{created_orders_number} of #{@orders_number} #{'order'.pluralize(@orders_number)} created (#{seconds} seconds passed)."
+    end
+  end
+end
+
+def created_orders_number
+  @jobs_mutex.synchronize { @orders_number - @jobs.length }
+end
+
+def all_orders_created?
+  @jobs_mutex.synchronize { @jobs.empty? }
+end
+
+def install_handlers_for_process_signals
+  @interrupts_received = 0
+  %i[ INT TERM HUP QUIT ].each do |signal|
+    Kernel.trap signal do
+      Kernel.puts '' if signal == :INT
+      Kernel.puts 'Gracefully terminating workers...' unless @terminating
+      @terminating = true
+      next unless signal == :INT
+      if (@interrupts_received += 1) > 1
+        Kernel.exit(-1)
+      else
+        Kernel.puts 'Interrupt again to exit immediately.'
+      end
+    end
+  end
+end
+
+def initialize_jobs
+  @jobs_mutex.synchronize do
+    1.upto(@orders_number).to_a.shuffle.each do |n|
+      @jobs << { side:   %w[sell buy][n % 2],
+                 market: @market,
+                 volume: @order_volume,
+                 price:  @order_price }
+    end
+  end
+end
+
+def pop_job
+  @jobs_mutex.synchronize { @jobs.pop }
+end
+
+def create_and_run_workers
+  @threads_number.times.map do
+    Thread.new {
+      loop do
+        break if all_orders_created?
+        break if @terminating
+        time_before = Time.now
+        api_v2_post '/orders', data: pop_job, jwt: api_v2_jwt_for(traders.sample)
+        time_after = Time.now
+        order_created(time_after.to_f - time_before.to_f)
+      rescue => e
+        Kernel.puts e.inspect
+      end
+    }
+  end.each(&:join)
+end
+
+def compute_report
+  ops = created_orders_number / (Time.now.to_f - @launched_at.to_f)
+
+  @report = {
+      'options' => {
+          'root_url' => @root_url.to_s,
+          'currencies' => @currencies.map(&:upcase),
+          'market' => @market.upcase,
+          'nb_concurent_traders' =>  @traders_number,
+          'total_orders' => @orders_number,
+          'nb_concurent_orders' => @threads_number,
+          'min_volume' => @min_volume,
+          'max_volume' => @min_volume,
+          'volume_stop' => @volume_step,
+          'min_price' => @min_price,
+          'max_price' => @max_price,
+          'price_step' => @price_step,
+          'started_at' => @launched_at,
+          'completed_at' => @completed_at,
+      },
+      'results' => {
+          'ops' => ops,
+          'times' => {
+              'min' => @times_min,
+              'max' => @times_max,
+              'avg' => @times_total / @times_count,
+          }
+      },
+  }
+end
+
+def output_report_yaml(filename)
+  return unless filename
+  File.open(filename, "w") do |f|
+    f.puts YAML.dump(@report)
+  end
+  puts "Report output to #{ filename }"
+end
+
+def run
+  @statistics_mutex = Mutex.new
+  @jobs_mutex       = Mutex.new
+  @jobs             = []
+  initialize_jobs
+  @times_min, @times_max, @times_count, @times_total = nil, nil, 0, 0.0
+
+  Kernel.puts '' # Add a little padding.
+  print_options
+  Kernel.puts ''
+  traders
+  Kernel.print 'Making each trader billionaire... '
+  traders.each(&method(:become_billionaire))
+  Kernel.puts 'OK'
+
+  install_handlers_for_process_signals
+  @launched_at = Time.now
+  create_and_run_workers
+  @completed_at = Time.now
+end
