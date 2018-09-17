@@ -1,0 +1,59 @@
+# Market for orders seeding.
+usdbtc:
+  - type:           bid         # Order side.
+    amount:         10          # Amount of orders to be seed.
+    min_volume:     0.1         # Orders volume will be randomly generated
+    max_volume:     0.2         # in range min_volume and max_volume.
+    min_price:      0.9         # Orders price will be randomly generated
+    max_price:      2.0         # in range min_price and max_price.
+    # Comma-separated traders which will be randomly selected to seed orders.
+    # NOTE: Trader accounts must have enough funds for orders creation!
+    traders:        admin@barong.io,admin@peatio.tech
+    # Orders timestamp (created_at, updated_at) will be randomly generated
+    # in range min_created_at and max_created_at.
+    min_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
+    max_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
+
+  - type:           ask         # Order side.
+    amount:         5           # Amount of orders to be seed.
+    min_volume:     0.2         # Orders volume will be randomly generated
+    max_volume:     0.4         # in range min_volume and max_volume.
+    min_price:      0.8         # Orders price will be randomly generated
+    max_price:      2.0         # in range min_price and max_price.
+    # Comma-separated traders which will be randomly selected to seed orders.
+    # NOTE: Trader accounts must have enough funds for orders creation!
+    traders:        admin@barong.io,admin@peatio.tech
+    # Orders timestamp (created_at, updated_at) will be randomly generated
+    # in range min_created_at and max_created_at.
+    min_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
+    max_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
+
+usdeth:
+  - type:           bid         # Order side.
+    amount:         20          # Amount of orders to be seed.
+    min_volume:     0.5         # Orders volume will be randomly generated
+    max_volume:     0.8         # in range min_volume and max_volume.
+    min_price:      10         # Orders price will be randomly generated
+    max_price:      15         # in range min_price and max_price.
+    # Comma-separated traders which will be randomly selected to seed orders.
+    # NOTE: Trader accounts must have enough funds for orders creation!
+    traders:        admin@barong.io,admin@peatio.tech
+    # Orders timestamp (created_at, updated_at) will be randomly generated
+    # in range min_created_at and max_created_at.
+    min_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
+    max_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
+
+  - type:           ask         # Order side.
+    amount:         10           # Amount of orders to be seed.
+    min_volume:     1.2         # Orders volume will be randomly generated
+    max_volume:     1.4         # in range min_volume and max_volume.
+    min_price:      11         # Orders price will be randomly generated
+    max_price:      16         # in range min_price and max_price.
+    # Comma-separated traders which will be randomly selected to seed orders.
+    # NOTE: Trader accounts must have enough funds for orders creation!
+    traders:        admin@barong.io,admin@peatio.tech
+    # Orders timestamp (created_at, updated_at) will be randomly generated
+    # in range min_created_at and max_created_at.
+    min_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
+    max_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
+
