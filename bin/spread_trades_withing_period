@@ -1,0 +1,37 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'commander/import'
+
+program :name, 'spread_trades_withing_period'
+program :version, '0.0.1'
+program :description, 'Spread trades and corresponding orders across the specified period of time'
+
+command :call do |c|
+  c.syntax = 'spread_trades_withing_period call [options]'
+  c.example 'description', "./bin/spread_trades_withing_period call --dbname 'peatio_production' --start-timestamp '2018-10-30 14:53:27' --end-timestamp '2018-11-30 14:53:27'"
+  c.option '--host STRING',            String, 'Database host'
+  c.option '--username STRING',        String, 'Database username'
+  c.option '--dbname STRING',          String, 'Database name'
+  c.option '--start-timestamp STRING', String, 'Beginning of the period. I.e. \'2018-04-30 14:53:27\''
+  c.option '--end-timestamp STRING',   String, 'End of the period. I.e. \'2018-06-30 14:53:27\''
+  c.action do |args, options|
+    if options.start_timestamp.nil? or options.end_timestamp.nil?
+      raise ArgumentError, 'Start/end timestamps should be specified'
+    end
+
+    options.default host: 'localhost', username: 'root'
+
+    Kernel.system %Q{
+      mysql -h #{options.host} -u #{options.username} -p #{options.dbname} -e "
+        SET @MIN = '#{options.start_timestamp}';
+        SET @MAX = '#{options.end_timestamp}';
+        start transaction;
+        update trades set trades.created_at = (select timestampadd(SECOND, floor(rand() * timestampdiff(SECOND, @MIN, @MAX)), @MIN));
+        update orders inner join trades on trades.ask_id = orders.id set orders. created_at = (select timestampadd(SECOND, -2, trades.created_at));
+        update orders inner join trades on trades.bid_id = orders.id set orders. created_at = (select timestampadd(SECOND, -2, trades.created_at));
+        commit;
+      "
+    }
+  end
+end
