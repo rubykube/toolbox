@@ -1,4 +1,4 @@
-# Market for orders seeding.
+# NOTE: Orders for each market should be sorted by created_at.
 usdbtc:
   - type:           bid         # Order side.
     amount:         10          # Amount of orders to be seed.
