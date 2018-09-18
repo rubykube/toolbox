@@ -60,8 +60,9 @@ def trading_activity_seed
     end
   end
 
-  # Wait additional time for orders matching and trades execution.
-  sleep 2
+  sleep_time = 5 + orders_ids.length / 10
+  Kernel.puts("Wait additional #{sleep_time} sec for orders matching and trades execution")
+  sleep(sleep_time)
   update_dependant_trades_timestamp(orders_ids)
 end
 
