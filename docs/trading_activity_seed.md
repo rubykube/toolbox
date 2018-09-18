@@ -1,6 +1,7 @@
 ## Trading Activity Seed
 
 This script provides the easiest way to seed your platform with some trading activity.
+It requires access to Peatio database and rails console.
 
 ### Running
 
