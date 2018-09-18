@@ -8,7 +8,7 @@ usdbtc:
     max_price:      2.0         # in range min_price and max_price.
     # Comma-separated traders which will be randomly selected to seed orders.
     # NOTE: Trader accounts must have enough funds for orders creation!
-    traders:        admin@barong.io,admin@peatio.tech
+    traders:        admin@peatio.tech,admin@barong.io
     # Orders timestamp (created_at, updated_at) will be randomly generated
     # in range min_created_at and max_created_at.
     min_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
@@ -37,7 +37,7 @@ usdeth:
     max_price:      15         # in range min_price and max_price.
     # Comma-separated traders which will be randomly selected to seed orders.
     # NOTE: Trader accounts must have enough funds for orders creation!
-    traders:        admin@barong.io,admin@peatio.tech
+    traders:        admin@peatio.tech,admin@barong.io
     # Orders timestamp (created_at, updated_at) will be randomly generated
     # in range min_created_at and max_created_at.
     min_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00

@@ -14,3 +14,5 @@ docker run -it --rm rubykube/toolbox bin/stress_trading --root-url http://peatio
 ```
 
 The command above creates 10 traders each with 1 billion UAH, USD & USD. Then it opens 1000 new orders in UAHUSD, UAHEUR markets using 10 threads (parallel).
+
+## [Seeding trading activity](docs/trading_activity_seed.md)

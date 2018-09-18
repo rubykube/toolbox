@@ -60,7 +60,7 @@ def trading_activity_seed
     end
   end
 
-  # Wait additional time for order to be matched and executed.
+  # Wait additional time for orders matching and trades execution.
   sleep 2
   update_dependant_trades_timestamp(orders_ids)
 end
