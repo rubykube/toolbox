@@ -2,6 +2,7 @@
 
 This script provides the easiest way to seed your platform with some trading activity.
 It requires access to Peatio database and rails console.
+It's better to dump database before seeding database.
 
 ### Running
 
