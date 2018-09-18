@@ -12,26 +12,11 @@ You can use `cp` if you run peatio locally or `curl` if you use docker container
 
 3. Update seed file `vim config/trading_activity_seed.yml`
 
-4. Make sure that your traders have enough funds for trading.
-*Never use it in production!* You can seed some fake balance using script bellow (run it from rails console).
-```ruby
-members    = 'admin@barong.io,admin@peatio.tech'.split(',').map(&:squish)
-currencies = 'usd,btc,eth'.split(',').map(&:squish)
-amount     = 50
-
-Account.where(currency_id: currencies)\
-       .joins(:member)\
-       .merge(Member.where(email: members))\
-       .find_each { |a| a.plus_funds!(amount) }
-```
+4. Make sure that your traders have enough funds for orders creation.
 
 5. Run script `RAILS_ROOT=YOUR-PEATIO-DIRECTORY bundle exec ruby bin/trading_activity_seed`
 
 6. If you have OHLC(k-line) cached in Redis you need to clean up it and k-daemon will update it.
-```bash
-KLINE_DB="redis-cli -n 1"
-KLINE_DB KEYS "peatio:*:k:*" | xargs $KLINE_DB DEL
-```
 
 ### Example
 
@@ -49,7 +34,7 @@ usdeth:
     max_volume:     0.2
     min_price:      0.9
     max_price:      2.0
-    traders:        admin@barong.io
+    traders:        admin@barong.io,admin@peatio.tech
     min_created_at: Mon, 18 Sep 2018 10:00:00 CEST +02:00
     max_created_at: Mon, 18 Sep 2018 12:00:00 CEST +02:00
 
@@ -59,15 +44,15 @@ usdeth:
     max_volume:     0.4
     min_price:      0.8
     max_price:      2.0
-    traders:        admin@barong.io
+    traders:        admin@barong.io,admin@peatio.tech
     min_created_at: Mon, 18 Sep 2018 10:00:00 CEST +02:00
     max_created_at: Mon, 18 Sep 2018 12:00:00 CEST +02:00
 ```
 
 4. From rails console
-
+*Never use it in production!*
 ```ruby
-members    = 'admin@barong.io'.split(',').map(&:squish)
+members    = 'admin@barong.io,admin@peatio.tech'.split(',').map(&:squish)
 currencies = 'usd,eth'.split(',').map(&:squish)
 amount     = 1000
 
@@ -82,7 +67,7 @@ Account.where(currency_id: currencies)\
 RAILS_ROOT=`pwd` bundle exec ruby bin/trading_activity_seed
 ```
 
-6. `redis-cli -n 1 KEYS "peatio:*:k:*" | xargs redis-cli -n 1 DEL`
+6. Clean OHLC(k-line) cached in Redis `redis-cli -n 1 KEYS "peatio:*:k:*" | xargs redis-cli -n 1 DEL`
 
 ### Result
 
