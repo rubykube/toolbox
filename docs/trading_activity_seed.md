@@ -14,7 +14,7 @@ You can use `cp` if you run peatio locally or `curl` if you use docker container
 
 3. Update seed file `vim config/trading_activity_seed.yml`
 
-4. Make sure that your traders have enough funds for orders creation.
+4. Make sure that your traders are created and have enough funds for orders creation.
 
 5. Run script `RAILS_ROOT=YOUR-PEATIO-DIRECTORY bundle exec ruby bin/trading_activity_seed`
 
@@ -69,7 +69,12 @@ Account.where(currency_id: currencies)\
 RAILS_ROOT=`pwd` bundle exec ruby bin/trading_activity_seed
 ```
 
-6. Clean OHLC(k-line) cached in Redis `redis-cli -n 1 KEYS "peatio:*:k:*" | xargs redis-cli -n 1 DEL`
+6. Clean OHLC(k-line) cached in Redis.
+Regeneration of new k-line may take a lot of time first trade was created long time ago.
+(about 1 hour for 4 markets and 2 month old firs trades)
+```bash
+KLINE_DB="redis-cli -a REDIS_PASSWORD -n 1"
+$KLINE_DB KEYS "peatio:*:k:*" | xargs $KLINE_DB DEL```
 
 ### Result
 
