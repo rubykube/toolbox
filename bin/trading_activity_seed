@@ -46,6 +46,17 @@ def update_dependant_trades_timestamp(orders_ids)
   end
 end
 
+def wait_for_execution
+  sleep 2
+  trade_count = Trade.count
+  loop do
+    Kernel.puts("Wait additional 1 sec for orders matching and trades execution.")
+    sleep 1
+    break if trade_count - Trade.count == 0
+    trade_count = Trade.count
+  end
+end
+
 def trading_activity_seed
   orders_ids = []
   YAML.load_file(File.join(ENV.fetch('RAILS_ROOT'), 'config', 'trading_activity_seed.yml') || []).deep_symbolize_keys.each do |market, settings|
@@ -60,9 +71,7 @@ def trading_activity_seed
     end
   end
 
-  sleep_time = 5 + orders_ids.length / 10
-  Kernel.puts("Wait additional #{sleep_time} sec for orders matching and trades execution")
-  sleep(sleep_time)
+  wait_for_execution
   update_dependant_trades_timestamp(orders_ids)
 end
 
