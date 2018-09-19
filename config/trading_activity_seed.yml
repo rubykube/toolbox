@@ -11,7 +11,7 @@ usdbtc:
     traders:        admin@peatio.tech,admin@barong.io
     # Orders timestamp (created_at, updated_at) will be randomly generated
     # in range min_created_at and max_created_at.
-    min_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
+    min_created_at: Mon, 17 Sep 2018 10:00:00 CEST +02:00
     max_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
 
   - type:           ask         # Order side.
@@ -25,7 +25,7 @@ usdbtc:
     traders:        admin@barong.io,admin@peatio.tech
     # Orders timestamp (created_at, updated_at) will be randomly generated
     # in range min_created_at and max_created_at.
-    min_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
+    min_created_at: Mon, 17 Sep 2018 10:00:00 CEST +02:00
     max_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
 
 usdeth:
@@ -40,7 +40,7 @@ usdeth:
     traders:        admin@peatio.tech,admin@barong.io
     # Orders timestamp (created_at, updated_at) will be randomly generated
     # in range min_created_at and max_created_at.
-    min_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
+    min_created_at: Mon, 17 Sep 2018 10:00:00 CEST +02:00
     max_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
 
   - type:           ask         # Order side.
@@ -54,6 +54,6 @@ usdeth:
     traders:        admin@barong.io,admin@peatio.tech
     # Orders timestamp (created_at, updated_at) will be randomly generated
     # in range min_created_at and max_created_at.
-    min_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
+    min_created_at: Mon, 17 Sep 2018 10:00:00 CEST +02:00
     max_created_at: Mon, 17 Sep 2018 12:00:00 CEST +02:00
 
