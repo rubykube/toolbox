@@ -72,6 +72,7 @@ RAILS_ROOT=`pwd` bundle exec ruby bin/trading_activity_seed
 6. Clean OHLC(k-line) cached in Redis.
 Regeneration of new k-line may take a lot of time first trade was created long time ago.
 (about 1 hour for 4 markets and 2 month old firs trades)
+From Redis container run
 ```bash
 KLINE_DB="redis-cli -a REDIS_PASSWORD -n 1"
 $KLINE_DB KEYS "peatio:*:k:*" | xargs $KLINE_DB DEL```
