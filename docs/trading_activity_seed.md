@@ -75,7 +75,8 @@ Regeneration of new k-line may take a lot of time first trade was created long t
 From Redis container run
 ```bash
 KLINE_DB="redis-cli -a REDIS_PASSWORD -n 1"
-$KLINE_DB KEYS "peatio:*:k:*" | xargs $KLINE_DB DEL```
+$KLINE_DB KEYS "peatio:*:k:*" | xargs $KLINE_DB DEL
+```
 
 ### Result
 
