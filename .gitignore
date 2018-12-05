@@ -1,6 +1,7 @@
 *.gem
 .rubocop-*
 .bundle
+.rspec_status
 /pkg
 /tmp
 /.idea
