@@ -54,5 +54,8 @@ DEPENDENCIES
   memoist (~> 0.16)
   rspec (~> 3.8)
 
+RUBY VERSION
+   ruby 2.5.3p105
+
 BUNDLED WITH
    1.17.1
