@@ -3,6 +3,7 @@
 
 source 'https://rubygems.org'
 
+ruby '2.5.3'
 gem 'activesupport', '~> 5.2', require: 'active_support/all'
 gem 'faraday', '~> 0.12'
 gem 'jwt', '~> 2.1'
