@@ -4,9 +4,31 @@ require 'bundler/setup'
 require 'toolbox'
 require 'faraday'
 require 'faraday_middleware'
+require 'faker'
+require 'bunny'
+require './spec/support/event_consuming_helper'
 
 RSpec.configure do |config|
-  TOOLBOX_HOST=ENV.fetch('TOOLBOX_HOST', 'http://www.microkube.com')
+  TOOLBOX_HOST = ENV.fetch('TOOLBOX_HOST', 'http://www.microkube.com')
+  EVENT_API_JWT_PRIVATE_KEY = ENV.fetch('EVENT_API_JWT_PRIVATE_KEY', '')
+  EVENT_API_JWT_ALGORITHM = ENV.fetch('EVENT_API_JWT_ALGORITHM', 'RS256')
+  EVENT_API_RABBITMQ_HOST = ENV.fetch(
+    'EVENT_API_RABBITMQ_HOST',
+    'rabbitmq.microkube.com'
+  )
+  EVENT_API_RABBITMQ_PORT = ENV.fetch('EVENT_API_RABBITMQ_PORT', '5672')
+  EVENT_API_RABBITMQ_USERNAME = ENV.fetch(
+    'EVENT_API_RABBITMQ_USERNAME',
+    'guest'
+  )
+  EVENT_API_RABBITMQ_PASSWORD = ENV.fetch(
+    'EVENT_API_RABBITMQ_PASSWORD',
+    'guest'
+  )
+
+  RSpec.configure do |c|
+    c.include EventConsumingHelper
+  end
   # Enable flags like --only-failures and --next-failure
   config.example_status_persistence_file_path = '.rspec_status'
 

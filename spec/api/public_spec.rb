@@ -21,7 +21,7 @@ RSpec.describe 'Peatio public api' do
 
   # TODO: rewrite to match real markets data
 
-  describe 'get /public/markets' do
+  context 'get /public/markets' do
     let(:request) { public_host.get('markets') }
 
     it 'should respond with array of hashes' do
