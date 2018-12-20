@@ -10,7 +10,7 @@ gem 'faraday_middleware', '~> 0.12.2'
 gem 'jwt', '~> 2.1'
 gem 'memoist', '~> 0.16'
 gem 'jwt-multisig', '~> 1.0'
-gem 'faker', '~> 1.8'
+gem 'faker', '~> 1.9.1'
 gem 'rspec', '~> 3.8'
 
 group :cli do

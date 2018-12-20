@@ -4,6 +4,7 @@ require 'bundler/setup'
 require 'toolbox'
 require 'faraday'
 require 'faraday_middleware'
+require 'faker'
 
 RSpec.configure do |config|
   TOOLBOX_HOST=ENV.fetch('TOOLBOX_HOST', 'http://www.microkube.com')
