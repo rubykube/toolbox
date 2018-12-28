@@ -7,6 +7,7 @@ require 'faraday_middleware'
 require 'faker'
 require 'bunny'
 require './spec/support/event_consuming_helper'
+require './spec/support/protected_routes_helper'
 
 RSpec.configure do |config|
   TOOLBOX_HOST = ENV.fetch('TOOLBOX_HOST', 'http://www.microkube.com')
@@ -25,6 +26,8 @@ RSpec.configure do |config|
     'EVENT_API_RABBITMQ_PASSWORD',
     'guest'
   )
+  EMAIL = Faker::Internet.email
+  PASSWORD = Faker::Internet.password(10, 20, true)
 
   RSpec.configure do |c|
     c.include EventConsumingHelper
