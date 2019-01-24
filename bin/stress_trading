@@ -230,23 +230,30 @@ end
 
 def api_v2_jwt_for(user, payload = {})
   payload = payload.dup
-  payload.merge!(user.slice(:email, :uid, :level, :state))
+  payload.merge!(user.slice(:uid, :email, :referral_id, :role, :level, :state))
   payload.reverse_merge! \
     iat: Time.now.to_i,
     exp: 5.minutes.from_now.to_i,
     jti: SecureRandom.uuid,
     sub: 'session',
     iss: 'barong',
-    aud: ['peatio']
+    aud: ['peatio', 'barong']
   JWT.encode(payload, @api_v2_jwt_key, @api_v2_jwt_algorithm)
 end
 
 def traders
   Kernel.print "Creating #{@traders_number} #{'trader'.pluralize(@traders_number)}... "
   @traders_number.times.map do
-    { email: unique_email, uid: unique_uid, level: 3, state: 'active' }.tap do |trader|
+    {
+      uid: unique_uid,
+      email: unique_email,
+      referral_id: nil,
+      role: 'member',
+      level: 3,
+      state: 'active'
+    }.tap do |trader|
       # Issue GET /api/v2/members/me to register user at Peatio.
-      api_v2_get('/members/me', jwt: api_v2_jwt_for(trader))
+      api_v2_get('/account/balances', jwt: api_v2_jwt_for(trader))
     end
   end.tap { Kernel.puts 'OK' }
 end
