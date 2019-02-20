@@ -245,8 +245,8 @@ def traders
   Kernel.print "Creating #{@traders_number} #{'trader'.pluralize(@traders_number)}... "
   @traders_number.times.map do
     { email: unique_email, uid: unique_uid, level: 3, state: 'active' }.tap do |trader|
-      # Issue GET /api/v2/members/me to register user at Peatio.
-      api_v2_get('/members/me', jwt: api_v2_jwt_for(trader))
+      # Issue GET /api/v2/account/balances to register user at Peatio.
+      api_v2_get('/peatio/account/balances', jwt: api_v2_jwt_for(trader))
     end
   end.tap { Kernel.puts 'OK' }
 end
