@@ -80,9 +80,9 @@ command :run do |c|
   c.option '--price-step NUMBER', Float, 'The number which is used split range between min and max prices into list (defaults to 0.1).'
   c.option '--api-v2-jwt-key VALUE', String, 'Private RSA key used for signing JWT in Member API v2. Must be in PEM format URL-safe Base64 encoded.'
   c.option '--api-v2-jwt-algorithm VALUE', String, 'JWT signing algorithm in Member API v2 (defaults to "RS256").'
-  c.option '--management-api-v2-jwt-key VALUE', String, 'Private RSA key used for signing JWT in Management API v1. Must be in PEM format URL-safe Base64 encoded.'
-  c.option '--management-api-v2-jwt-signer VALUE', String, 'Management API v1 JWT signer name (defaults to "applogic").'
-  c.option '--management-api-v2-jwt-algorithm VALUE', String, 'JWT signing algorithm in Management API v1 (defaults to "RS256").'
+  c.option '--management-api-v2-jwt-key VALUE', String, 'Private RSA key used for signing JWT in Management API v2. Must be in PEM format URL-safe Base64 encoded.'
+  c.option '--management-api-v2-jwt-signer VALUE', String, 'Management API v2 JWT signer name (defaults to "applogic").'
+  c.option '--management-api-v2-jwt-algorithm VALUE', String, 'JWT signing algorithm in Management API v2 (defaults to "RS256").'
   c.option '--report-yaml VALUE', String, 'Path to store a report in YAML format'
   c.action do |args, options|
     options.default threads:                         1,
@@ -192,9 +192,9 @@ def configure_api_v2(jwt_key, jwt_algorithm)
 end
 
 def configure_management_api_v2(jwt_key, jwt_signer, jwt_algorithm)
-  raise ArgumentError, 'Management API v1 private JWT key is missing.' if jwt_key.blank?
-  raise ArgumentError, 'Management API v1 JWT signer is missing.' if jwt_signer.blank?
-  raise ArgumentError, 'Management API v1 JWT algorithm is missing.' if jwt_algorithm.blank?
+  raise ArgumentError, 'Management API v2 private JWT key is missing.' if jwt_key.blank?
+  raise ArgumentError, 'Management API v2 JWT signer is missing.' if jwt_signer.blank?
+  raise ArgumentError, 'Management API v2 JWT algorithm is missing.' if jwt_algorithm.blank?
   @management_api_v2_jwt_key       = OpenSSL::PKey.read(Base64.urlsafe_decode64(jwt_key))
   @management_api_v2_jwt_signer    = jwt_signer
   @management_api_v2_jwt_algorithm = jwt_algorithm
