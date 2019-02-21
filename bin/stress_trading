@@ -80,15 +80,15 @@ command :run do |c|
   c.option '--price-step NUMBER', Float, 'The number which is used split range between min and max prices into list (defaults to 0.1).'
   c.option '--api-v2-jwt-key VALUE', String, 'Private RSA key used for signing JWT in Member API v2. Must be in PEM format URL-safe Base64 encoded.'
   c.option '--api-v2-jwt-algorithm VALUE', String, 'JWT signing algorithm in Member API v2 (defaults to "RS256").'
-  c.option '--management-api-v1-jwt-key VALUE', String, 'Private RSA key used for signing JWT in Management API v1. Must be in PEM format URL-safe Base64 encoded.'
-  c.option '--management-api-v1-jwt-signer VALUE', String, 'Management API v1 JWT signer name (defaults to "applogic").'
-  c.option '--management-api-v1-jwt-algorithm VALUE', String, 'JWT signing algorithm in Management API v1 (defaults to "RS256").'
+  c.option '--management-api-v2-jwt-key VALUE', String, 'Private RSA key used for signing JWT in Management API v1. Must be in PEM format URL-safe Base64 encoded.'
+  c.option '--management-api-v2-jwt-signer VALUE', String, 'Management API v1 JWT signer name (defaults to "applogic").'
+  c.option '--management-api-v2-jwt-algorithm VALUE', String, 'JWT signing algorithm in Management API v1 (defaults to "RS256").'
   c.option '--report-yaml VALUE', String, 'Path to store a report in YAML format'
   c.action do |args, options|
     options.default threads:                         1,
                     api_v2_jwt_algorithm:            'RS256',
-                    management_api_v1_jwt_signer:    'applogic',
-                    management_api_v1_jwt_algorithm: 'RS256',
+                    management_api_v2_jwt_signer:    'applogic',
+                    management_api_v2_jwt_algorithm: 'RS256',
                     min_volume:                      1.0,
                     max_volume:                      100.0,
                     volume_step:                     1.0,
@@ -106,7 +106,7 @@ command :run do |c|
     configure_volumes(options.min_volume, options.max_volume, options.volume_step)
     configure_prices(options.min_price, options.max_price, options.price_step)
     configure_api_v2(options.api_v2_jwt_key, options.api_v2_jwt_algorithm)
-    configure_management_api_v1(options.management_api_v1_jwt_key, options.management_api_v1_jwt_signer, options.management_api_v1_jwt_algorithm)
+    configure_management_api_v2(options.management_api_v2_jwt_key, options.management_api_v2_jwt_signer, options.management_api_v2_jwt_algorithm)
     run
     compute_report
     output_report_yaml(options.report_yaml)
@@ -191,13 +191,13 @@ def configure_api_v2(jwt_key, jwt_algorithm)
   @api_v2_jwt_algorithm = jwt_algorithm
 end
 
-def configure_management_api_v1(jwt_key, jwt_signer, jwt_algorithm)
+def configure_management_api_v2(jwt_key, jwt_signer, jwt_algorithm)
   raise ArgumentError, 'Management API v1 private JWT key is missing.' if jwt_key.blank?
   raise ArgumentError, 'Management API v1 JWT signer is missing.' if jwt_signer.blank?
   raise ArgumentError, 'Management API v1 JWT algorithm is missing.' if jwt_algorithm.blank?
-  @management_api_v1_jwt_key       = OpenSSL::PKey.read(Base64.urlsafe_decode64(jwt_key))
-  @management_api_v1_jwt_signer    = jwt_signer
-  @management_api_v1_jwt_algorithm = jwt_algorithm
+  @management_api_v2_jwt_key       = OpenSSL::PKey.read(Base64.urlsafe_decode64(jwt_key))
+  @management_api_v2_jwt_signer    = jwt_signer
+  @management_api_v2_jwt_algorithm = jwt_algorithm
 end
 
 def unique_email
@@ -207,7 +207,7 @@ end
 def unique_uid
   @used_uids ||= [].to_set
   loop do
-    uid = "UID#{SecureRandom.hex(5).upcase}"
+    uid = "UID#{SecureRandom.hex(4).upcase}"
     unless @used_uids.include?(uid)
       @used_uids << uid
       return uid
@@ -237,7 +237,8 @@ def api_v2_jwt_for(user, payload = {})
     jti: SecureRandom.uuid,
     sub: 'session',
     iss: 'barong',
-    aud: ['peatio']
+    aud: ['peatio'],
+    role: :member
   JWT.encode(payload, @api_v2_jwt_key, @api_v2_jwt_algorithm)
 end
 
@@ -245,8 +246,8 @@ def traders
   Kernel.print "Creating #{@traders_number} #{'trader'.pluralize(@traders_number)}... "
   @traders_number.times.map do
     { email: unique_email, uid: unique_uid, level: 3, state: 'active' }.tap do |trader|
-      # Issue GET /api/v2/account/balances to register user at Peatio.
-      api_v2_get('/peatio/account/balances', jwt: api_v2_jwt_for(trader))
+      # Issue GET /api/v2/account/balances to create user at Peatio DB.
+      api_v2_get('/account/balances', jwt: api_v2_jwt_for(trader))
     end
   end.tap { Kernel.puts 'OK' }
 end
@@ -278,16 +279,16 @@ memoize :prices
 
 def become_billionaire(trader)
   @currencies.each do |currency|
-    keychain   = { @management_api_v1_jwt_signer => @management_api_v1_jwt_key }
-    algorithms = { @management_api_v1_jwt_signer => @management_api_v1_jwt_algorithm }
+    keychain   = {@management_api_v2_jwt_signer => @management_api_v2_jwt_key }
+    algorithms = {@management_api_v2_jwt_signer => @management_api_v2_jwt_algorithm }
     data       = { uid: trader[:uid], currency: currency, amount: 1_000_000_000, state: :accepted }
     payload    = { iat:  Time.now.to_i,
                    exp:  5.minutes.from_now.to_i,
                    jti:  SecureRandom.uuid,
-                   iss:  @management_api_v1_jwt_signer,
+                   iss:  @management_api_v2_jwt_signer,
                    data: data }
     jwt        = JWT::Multisig.generate_jwt(payload, keychain, algorithms)
-    url = URI.join(@root_url, '/management_api/v1/deposits/new')
+    url = URI.join(@root_url, '/api/v2/management/deposits/new')
     Faraday.post(url, jwt.to_json, 'Content-Type' => 'application/json').assert_success!
   end
 end
@@ -338,7 +339,7 @@ def create_and_run_workers
         break if all_orders_created?
         break if @terminating
         time_before = Time.now
-        api_v2_post '/orders', data: {
+        api_v2_post '/market/orders', data: {
           side:   %w[sell buy].sample,
           market: @markets.sample,
           volume: volumes.sample.to_s,
