@@ -66,7 +66,7 @@ program :version,     '1.0.0'
 default_command       :run
 
 command :run do |c|
-  c.option '--root-url URL', String, 'Peatio root URL.'
+  c.option '--root-url URL', String, 'Peatio root URL (/api/v2/ path will be appended unless other was specified).'
   c.option '--currencies VALUE', String, 'Comma-separated fiat currencies (at least 2).'
   c.option '--markets VALUE', String, 'Comma-separated list of markets to trade in (at least 1).'
   c.option '--traders NUMBER', Integer, 'Number of traders (at least 2).'
@@ -137,7 +137,7 @@ end
 
 def configure_root_url(root_url)
   raise ArgumentError, 'Peatio root URL must be provided.' if root_url.blank?
-  @root_url = URI.parse(root_url)
+  @root_url = URI.parse(root_url).tap { |uri| uri.merge!('/api/v2/') if uri.path.empty? }
 end
 
 def configure_currencies(currencies)
@@ -217,14 +217,14 @@ end
 
 def api_v2_get(path, query: {}, headers: {}, jwt: nil)
   headers['Authorization'] = 'Bearer ' + jwt if jwt
-  url = URI.join(@root_url, '/api/v2/', path.gsub(/\A\/+/, ''))
+  url = URI.join(@root_url, path.gsub(/\A\/+/, ''))
   Faraday.get(url, query, headers).assert_success!
 end
 
 def api_v2_post(path, data: {}, headers: {}, jwt: nil)
   headers['Authorization'] = 'Bearer ' + jwt if jwt
   headers['Content-Type']  = 'application/json'
-  url = URI.join(@root_url, '/api/v2/', path.gsub(/\A\/+/, ''))
+  url = URI.join(@root_url, path.gsub(/\A\/+/, ''))
   Faraday.post(url, data.to_json, headers).assert_success!
 end
 
@@ -288,7 +288,7 @@ def become_billionaire(trader)
                    iss:  @management_api_v2_jwt_signer,
                    data: data }
     jwt        = JWT::Multisig.generate_jwt(payload, keychain, algorithms)
-    url = URI.join(@root_url, '/api/v2/management/deposits/new')
+    url = URI.join(@root_url, 'management/deposits/new')
     Faraday.post(url, jwt.to_json, 'Content-Type' => 'application/json').assert_success!
   end
 end
