@@ -237,7 +237,7 @@ def api_v2_jwt_for(user, payload = {})
     jti: SecureRandom.uuid,
     sub: 'session',
     iss: 'barong',
-    aud: ['peatio'],
+    aud: ['peatio', 'barong'],
     role: :member
   JWT.encode(payload, @api_v2_jwt_key, @api_v2_jwt_algorithm)
 end
