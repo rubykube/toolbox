@@ -12,6 +12,8 @@ gem 'jwt', '~> 2.1'
 gem 'memoist', '~> 0.16'
 gem 'jwt-multisig', '~> 1.0'
 gem 'faker', '~> 1.8'
+gem 'pry-byebug'
+gem 'method-not-implemented'
 gem 'rspec', '~> 3.8'
 
 group :cli do
