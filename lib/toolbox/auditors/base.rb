@@ -1,12 +1,12 @@
 module Toolbox::Auditors
   class Base
 
+    attr_reader :config
+
     # TODO: Custom config file.
     def initialize
-      binding.pry
       @config = Config.load_and_set_settings(default_conf_file)
       puts @config
-      # @config = File.exists?()
     end
 
     def default_conf_file
