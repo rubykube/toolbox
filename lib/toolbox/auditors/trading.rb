@@ -2,7 +2,6 @@ require_relative "base"
 
 module Toolbox::Auditors
   class Trading < Base
-
     include Toolbox::Helpers::Configuration
 
     def run!
@@ -11,16 +10,29 @@ module Toolbox::Auditors
       @created_orders_number = 0
       @times_min, @times_max, @times_count, @times_total = nil, nil, 0, 0.0
       @user_api_client = Toolbox::Clients::UserApiV2.new(@root_url, @api_v2_jwt_key, @api_v2_jwt_algorithm)
-
-      Kernel.puts '' # Add a little padding.
+      @management_api_client = Toolbox::Clients::ManagementApiV2.new(@root_url, @management_api_v2_jwt_key,
+                                                                     @management_api_v2_jwt_algorithm, @management_api_v2_jwt_signer)
+      Kernel.puts ''
       print_options
       Kernel.puts ''
-      Kernel.print "Creating #{@traders_number} #{'user'.pluralize(@traders_number)}... "
-      @users = @user_api_client.create_users(@traders_number)
-      Kernel.puts 'Created'
+      prepare_users
+      Kernel.puts 'OK'
     end
 
     protected
+
+    def prepare_users
+      Kernel.print "Creating #{@traders_number} #{'user'.pluralize(@traders_number)}... "
+      @users = @user_api_client.create_users(@traders_number)
+      Kernel.puts 'Created'
+      Kernel.print 'Making each user billionaire... '
+      @users.each do |u|
+        @currencies.each do |c|
+          @management_api_client.create_deposit(uid: u[:uid], currency: c)
+        end
+      end
+    end
+
     def print_options
       options = {
         'Root URL' => @root_url.to_s,
