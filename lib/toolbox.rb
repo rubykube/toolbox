@@ -1,6 +1,5 @@
 require "toolbox/version"
 
 module Toolbox
-  class Error < StandardError; end
-  # Your code goes here...
+  require_relative "toolbox/root_command"
 end

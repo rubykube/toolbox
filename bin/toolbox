@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+require "clamp"
+
+$: << File.join(File.dirname(__FILE__), "../lib")
+require 'toolbox'
+
+Toolbox::RootCommand.run
