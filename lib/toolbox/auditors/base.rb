@@ -9,11 +9,10 @@ module Toolbox::Auditors
     def initialize
       @config = Config.load_and_set_settings(default_conf_file)
       @config.merge!(default_conf.except(*@config.keys))
-      binding.pry
     end
 
     def run!
-      puts 'do nothing'
+      method_not_implemented
     end
 
     protected

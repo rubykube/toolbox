@@ -1,4 +1,4 @@
-root_url: http://peatio:8000
+root_url: http://localhost:3000
 currencies: usd,eur
 markets: eurusd
 traders: 2 

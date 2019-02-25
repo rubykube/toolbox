@@ -10,10 +10,14 @@ module Toolbox::Auditors
       @statistics_mutex      = Mutex.new
       @created_orders_number = 0
       @times_min, @times_max, @times_count, @times_total = nil, nil, 0, 0.0
+      @user_api_client = Toolbox::Clients::UserApiV2.new(@root_url, @api_v2_jwt_key, @api_v2_jwt_algorithm)
 
       Kernel.puts '' # Add a little padding.
       print_options
       Kernel.puts ''
+      Kernel.print "Creating #{@traders_number} #{'user'.pluralize(@traders_number)}... "
+      @users = @user_api_client.create_users(@traders_number)
+      Kernel.puts 'Created'
     end
 
     protected
