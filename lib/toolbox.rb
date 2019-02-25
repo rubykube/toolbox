@@ -9,6 +9,7 @@ module Toolbox
   require_relative "toolbox/clients"
   require_relative "toolbox/error"
   require_relative "toolbox/helpers"
+  require_relative "toolbox/injectors"
   require_relative "toolbox/root_command"
 end
 

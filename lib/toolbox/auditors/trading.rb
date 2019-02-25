@@ -12,14 +12,30 @@ module Toolbox::Auditors
       @user_api_client = Toolbox::Clients::UserApiV2.new(@root_url, @api_v2_jwt_key, @api_v2_jwt_algorithm)
       @management_api_client = Toolbox::Clients::ManagementApiV2.new(@root_url, @management_api_v2_jwt_key,
                                                                      @management_api_v2_jwt_algorithm, @management_api_v2_jwt_signer)
+
+      # TODO: Multiple market support.
+      @orders_injector = "/toolbox/injectors/order/#{@orders.injector}"
+                           .camelize
+                           .constantize
+                           .new(@orders.merge!(market: @markets.first))
+                           .tap(&:prepare!)
+
       Kernel.puts ''
       print_options
       Kernel.puts ''
       prepare_users
       Kernel.puts 'OK'
+      create_and_run_workers
     end
 
     protected
+
+    def create_and_run_workers
+      while order = @orders_injector.get_order
+        @user_api_client.create_order(order.merge, @users.sample)
+        puts order
+      end
+    end
 
     def prepare_users
       Kernel.print "Creating #{@traders_number} #{'user'.pluralize(@traders_number)}... "
@@ -41,12 +57,7 @@ module Toolbox::Auditors
         'Number of simultaneous traders' =>  @traders_number,
         'Number of orders to create' => @orders_number,
         'Number of simultaneous requests' => @threads_number,
-        'Minimum order volume' => @min_volume,
-        'Maximum order volume' => @max_volume,
-        'Order volume step' => @volume_step,
-        'Minimum order price' => @min_price,
-        'Maximum order price' => @max_price,
-        'Order price step' => @price_step,
+        'Order settings' => @orders,
       }
       length = options.keys.map(&:length).max
       options.each do |option, value|
@@ -60,12 +71,6 @@ module Toolbox::Auditors
         api_v2_jwt_algorithm:            'RS256',
         management_api_v2_jwt_signer:    'applogic',
         management_api_v2_jwt_algorithm: 'RS256',
-        min_volume:                      1.0,
-        max_volume:                      100.0,
-        volume_step:                     1.0,
-        min_price:                       0.5,
-        max_price:                       1.5,
-        price_step:                      0.1,
         report_yaml:                     "report-#{ Time.now.strftime("%F-%H%M%S") }.yml"
       }
     end
@@ -75,10 +80,8 @@ module Toolbox::Auditors
       configure_currencies(@config.currencies)
       configure_markets(@config.markets)
       configure_traders_number(@config.traders)
-      configure_orders_number(@config.orders)
+      configure_orders(@config.orders)
       configure_threads_number(@config.threads)
-      configure_volumes(@config.min_volume, @config.max_volume, @config.volume_step)
-      configure_prices(@config.min_price, @config.max_price, @config.price_step)
       configure_api_v2(@config.api_v2_jwt_key, @config.api_v2_jwt_algorithm)
       configure_management_api_v2(@config.management_api_v2_jwt_key,
                                   @config.management_api_v2_jwt_signer,

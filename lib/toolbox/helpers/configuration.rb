@@ -22,8 +22,8 @@ module Toolbox
         @traders_number = n
       end
 
-      def configure_orders_number(n)
-        @orders_number = n
+      def configure_orders(n)
+        @orders = n
       end
 
       def configure_threads_number(n)

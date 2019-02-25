@@ -22,6 +22,7 @@ module Toolbox
         Faraday.get(url, query, headers).assert_success!
       end
 
+      # TODO: create_user
       def create_users(number)
         number.times.map do
           { email: unique_email, uid: unique_uid, level: 3, state: 'active' }.tap do |user|
@@ -29,6 +30,10 @@ module Toolbox
             get('/account/balances', user: user)
           end
         end
+      end
+
+      def create_order(data, user)
+        post '/market/orders', data: data, user: user
       end
 
       private

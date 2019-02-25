@@ -1,4 +1,5 @@
-require "toolbox/helpers/configuration"
+require "toolbox/helpers"
+require "toolbox/injectors"
 
 module Toolbox::Auditors
   class Base
@@ -25,6 +26,6 @@ module Toolbox::Auditors
       File.join(TOOLBOX_ROOT, "config", "#{auditor_name}.yml")
     end
 
-    def default_conf; end
+    def default_conf; {}; end
   end
 end
