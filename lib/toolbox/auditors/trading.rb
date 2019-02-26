@@ -16,7 +16,7 @@ module Toolbox::Auditors
       @orders_injector = "/toolbox/injectors/order/#{@orders.injector}"
                            .camelize
                            .constantize
-                           .new(@orders.merge!(market: @markets.first))
+                           .new(@orders.merge!(markets: @markets))
                            .tap(&:prepare!)
 
       Kernel.puts ''
@@ -50,7 +50,7 @@ module Toolbox::Auditors
       File.open(report_file_path, "w") do |f|
         f.puts YAML.dump(compute_report)
       end
-      puts "Report output to #{ report_file_path }"
+      puts "Report output to #{report_file_path}"
     end
 
     def report_file_path
@@ -72,6 +72,7 @@ module Toolbox::Auditors
         },
         'results' => {
           'ops' => ops,
+          'time' => @completed_at - @launched_at
           # 'times' => {
           #   'min' => @times_min,
           #   'max' => @times_max,

@@ -7,6 +7,12 @@ module Toolbox::Injectors
 
       include Toolbox::Helpers::Configuration
 
+      def initialize(config)
+        super
+        @number = @config.number
+        @markets = @config.markets
+      end
+
       def prepare!
         configure_volumes
         configure_prices
@@ -42,7 +48,7 @@ module Toolbox::Injectors
 
       def generate_order
         { side:   %w[sell buy].sample,
-          market: @market,
+          market: @markets.sample,
           volume: @volumes.sample.to_s,
           price:  @prices.sample.to_s }
       end
