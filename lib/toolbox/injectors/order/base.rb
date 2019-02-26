@@ -1,13 +1,11 @@
 module Toolbox::Injectors
   module Order
     class Base
-      attr_reader :options, :orders_number
-      def initialize(options)
-        @options = options.merge!(default_conf.except(*options.keys))
-        binding.pry
-        @number = options.number
-        binding.pry
-        @market = options.market
+      attr_reader :config, :number
+      def initialize(config)
+        @config = config.merge!(default_conf.except(*config.keys))
+        @number = config.number
+        @market = config.market
       end
 
       def default_conf; {}; end

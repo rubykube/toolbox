@@ -1,0 +1,25 @@
+---
+options:
+  root_url: http://localhost:3000/api/v2/
+  currencies:
+  - USD
+  - EUR
+  markets:
+  - EURUSD
+  nb_concurent_traders: 20
+  total_orders: 200
+  nb_concurent_orders: 10
+  min_volume: 1.0
+  max_volume: 1.0
+  volume_stop: 1.0
+  min_price: 0.5
+  max_price: 1.5
+  price_step: 0.1
+  started_at: 2019-02-26 14:28:35.256799000 +02:00
+  completed_at: 2019-02-26 14:28:47.199079000 +02:00
+results:
+  ops: 17.500839715733235
+  times:
+    min: 0.09449911117553711
+    max: 2.356297016143799
+    avg: 0.5578445498452803

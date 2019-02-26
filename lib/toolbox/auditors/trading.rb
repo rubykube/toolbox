@@ -7,7 +7,6 @@ module Toolbox::Auditors
     def run!
       configure
       @statistics_mutex      = Mutex.new
-      @created_orders_number = 0
       @times_min, @times_max, @times_count, @times_total = nil, nil, 0, 0.0
       @user_api_client = Toolbox::Clients::UserApiV2.new(@root_url, @api_v2_jwt_key, @api_v2_jwt_algorithm)
       @management_api_client = Toolbox::Clients::ManagementApiV2.new(@root_url, @management_api_v2_jwt_key,
@@ -25,16 +24,61 @@ module Toolbox::Auditors
       Kernel.puts ''
       prepare_users
       Kernel.puts 'OK'
+      @launched_at = Time.now
       create_and_run_workers
+      @completed_at = Time.now
+      report_to_file
     end
 
     protected
 
     def create_and_run_workers
-      while order = @orders_injector.get_order
-        @user_api_client.create_order(order.merge, @users.sample)
-        puts order
+      Array.new(@threads_number) do |i|
+        Thread.new do
+          loop do
+            order = @orders_injector.pop
+            break unless order
+            @user_api_client.create_order(order, @users.sample)
+          rescue => e
+            Kernel.puts e.inspect
+          end
+        end
+      end.each(&:join)
+    end
+
+    def report_to_file
+      File.open(report_file_path, "w") do |f|
+        f.puts YAML.dump(compute_report)
       end
+      puts "Report output to #{ report_file_path }"
+    end
+
+    def report_file_path
+      File.join(TOOLBOX_ROOT, "reports", "#{auditor_name}-#{Time.now.strftime("%F-%H%M%S")}.yml")
+    end
+
+    def compute_report
+      ops = @orders.number / (@completed_at - @launched_at)
+
+      @report = {
+        'options' => {
+          'root_url' => @root_url.to_s,
+          'currencies' => @currencies.map(&:upcase),
+          'markets' => @markets.map(&:upcase),
+          'nb_concurent_traders' =>  @traders_number,
+          'total_orders' => @orders.number,
+          'nb_concurent_orders' => @threads_number,
+          'orders' => @orders.to_h
+        },
+        'results' => {
+          'ops' => ops,
+          # 'times' => {
+          #   'min' => @times_min,
+          #   'max' => @times_max,
+          #   'avg' => @times_total / @times_count,
+          # }
+        }
+      }
     end
 
     def prepare_users
@@ -57,7 +101,7 @@ module Toolbox::Auditors
         'Number of simultaneous traders' =>  @traders_number,
         'Number of orders to create' => @orders_number,
         'Number of simultaneous requests' => @threads_number,
-        'Order settings' => @orders,
+        'Order settings' => @orders.to_h,
       }
       length = options.keys.map(&:length).max
       options.each do |option, value|

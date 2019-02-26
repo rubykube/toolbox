@@ -1,4 +1,4 @@
-require "toolbox/helpers"
+require "toolbox/helpers/configuration"
 require "toolbox/injectors"
 
 module Toolbox::Auditors

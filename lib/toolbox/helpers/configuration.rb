@@ -1,6 +1,7 @@
 module Toolbox
   module Helpers
     # TODO: Deal with config better.
+    # @deprecated
     module Configuration
       def configure_root_url(root_url)
         raise ArgumentError, 'Peatio root URL must be provided.' if root_url.blank?
@@ -31,24 +32,24 @@ module Toolbox
         @threads_number = n
       end
 
-      def configure_volumes(min_volume, max_volume, volume_step)
-        raise ArgumentError, 'The value of volume step must be greater than zero.' if volume_step < 0.0
-        raise ArgumentError, 'The value of minimum volume must be greater than zero.' if min_volume < 0.0
-        raise ArgumentError, 'The value of maximum volume must be greater than zero.' if max_volume < 0.0
-        raise ArgumentError, 'The value of minimum volume must be lower than the value of maximum volume.' if min_volume > max_volume
-        @min_volume  = min_volume
-        @max_volume  = max_volume
-        @volume_step = volume_step
+      def configure_volumes
+        raise ArgumentError, 'The value of volume step must be greater than zero.' if @config.volume_step < 0.0
+        raise ArgumentError, 'The value of minimum volume must be greater than zero.' if @config.min_volume < 0.0
+        raise ArgumentError, 'The value of maximum volume must be greater than zero.' if @config.max_volume < 0.0
+        raise ArgumentError, 'The value of minimum volume must be lower than the value of maximum volume.' if @config.min_volume > @config.max_volume
+        @min_volume  = @config.min_volume
+        @max_volume  = @config.max_volume
+        @volume_step = @config.volume_step
       end
 
-      def configure_prices(min_price, max_price, price_step)
-        raise ArgumentError, 'The value of price step must be greater than zero.' if price_step < 0.0
-        raise ArgumentError, 'The value of minimum price must be greater than zero.' if min_price < 0.0
-        raise ArgumentError, 'The value of maximum price must be greater than zero.' if max_price < 0.0
-        raise ArgumentError, 'The value of minimum price must be lower than the value of maximum price.' if min_price > max_price
-        @min_price  = min_price
-        @max_price  = max_price
-        @price_step = price_step
+      def configure_prices
+        raise ArgumentError, 'The value of price step must be greater than zero.' if @config.price_step < 0.0
+        raise ArgumentError, 'The value of minimum price must be greater than zero.' if @config.min_price < 0.0
+        raise ArgumentError, 'The value of maximum price must be greater than zero.' if @config.max_price < 0.0
+        raise ArgumentError, 'The value of minimum price must be lower than the value of maximum price.' if @config.min_price > @config.max_price
+        @min_price  = @config.min_price
+        @max_price  = @config.max_price
+        @price_step = @config.price_step
       end
 
       def configure_api_v2(jwt_key, jwt_algorithm)
