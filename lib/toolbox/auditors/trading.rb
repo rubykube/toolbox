@@ -30,6 +30,14 @@ module Toolbox::Auditors
 
     protected
 
+    # TODO: Add progress output.
+    # E.g
+    #   4 of 200 orders created (0.24 seconds passed).
+    #   6 of 200 orders created (0.35 seconds passed).
+    #   8 of 200 orders created (0.47 seconds passed).
+    #   10 of 200 orders created (0.58 seconds passed).
+    #   12 of 200 orders created (0.69 seconds passed).
+    # TODO: Order creation failures processing.
     def create_and_run_workers
       Array.new(@threads_number) do
         Thread.new do
