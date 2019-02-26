@@ -22,12 +22,12 @@ module Toolbox
         Faraday.get(url, query, headers).assert_success!
       end
 
-      # TODO: create_user
+      # TODO: Refactor to create_user which will create single user.
       def create_users(number)
         Array.new(number) do
           { email: unique_email, uid: unique_uid, level: 3, state: 'active' }.tap do |user|
             # Merge JWT as user data field.
-            # So we can use it later.
+            # This tweak is used to gain performance.
             user.merge!(jwt: api_v2_jwt_for(user))
 
             # Issue GET /api/v2/account/balances to create user at Peatio DB.

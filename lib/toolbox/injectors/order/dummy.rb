@@ -3,7 +3,7 @@ require_relative "base"
 
 module Toolbox::Injectors
   module Order
-    class Stupid < Base
+    class Dummy < Base
 
       include Toolbox::Helpers::Configuration
 

@@ -17,8 +17,6 @@ module Toolbox::Auditors
                            .new(@orders.merge!(markets: @markets))
                            .tap(&:prepare!)
 
-      binding.pry
-
       Kernel.puts ''
       print_options
       Kernel.puts ''
