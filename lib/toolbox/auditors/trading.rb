@@ -6,18 +6,18 @@ module Toolbox::Auditors
 
     def run!
       configure
-      @statistics_mutex      = Mutex.new
-      @times_min, @times_max, @times_count, @times_total = nil, nil, 0, 0.0
+
       @user_api_client = Toolbox::Clients::UserApiV2.new(@root_url, @api_v2_jwt_key, @api_v2_jwt_algorithm)
       @management_api_client = Toolbox::Clients::ManagementApiV2.new(@root_url, @management_api_v2_jwt_key,
                                                                      @management_api_v2_jwt_algorithm, @management_api_v2_jwt_signer)
 
-      # TODO: Multiple market support.
       @orders_injector = "/toolbox/injectors/order/#{@orders.injector}"
                            .camelize
                            .constantize
                            .new(@orders.merge!(markets: @markets))
                            .tap(&:prepare!)
+
+      binding.pry
 
       Kernel.puts ''
       print_options
@@ -33,7 +33,7 @@ module Toolbox::Auditors
     protected
 
     def create_and_run_workers
-      Array.new(@threads_number) do |i|
+      Array.new(@threads_number) do
         Thread.new do
           loop do
             order = @orders_injector.pop
@@ -54,7 +54,7 @@ module Toolbox::Auditors
     end
 
     def report_file_path
-      File.join(TOOLBOX_ROOT, "reports", "#{auditor_name}-#{Time.now.strftime("%F-%H%M%S")}.yml")
+      File.join(TOOLBOX_ROOT, "reports", @config.report_yaml)
     end
 
     def compute_report
@@ -73,11 +73,6 @@ module Toolbox::Auditors
         'results' => {
           'ops' => ops,
           'time' => @completed_at - @launched_at
-          # 'times' => {
-          #   'min' => @times_min,
-          #   'max' => @times_max,
-          #   'avg' => @times_total / @times_count,
-          # }
         }
       }
     end
@@ -116,7 +111,7 @@ module Toolbox::Auditors
         api_v2_jwt_algorithm:            'RS256',
         management_api_v2_jwt_signer:    'applogic',
         management_api_v2_jwt_algorithm: 'RS256',
-        report_yaml:                     "report-#{ Time.now.strftime("%F-%H%M%S") }.yml"
+        report_yaml:                     "#{auditor_name}-#{ Time.now.strftime("%F-%H%M%S") }.yml"
       }
     end
 

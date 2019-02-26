@@ -6,12 +6,14 @@ module Toolbox::Auditors
 
     attr_reader :config
 
-    # TODO: Custom config file.
+    # TODO: Ability to customize config file with clamp option.
+    #       Now default config file is config/#{auditor_name}.yml.
     def initialize
       @config = Config.load_and_set_settings(default_conf_file)
       @config.merge!(default_conf.except(*@config.keys))
     end
 
+    # Subclasses implements this method.
     def run!
       method_not_implemented
     end

@@ -24,8 +24,12 @@ module Toolbox
 
       # TODO: create_user
       def create_users(number)
-        number.times.map do
+        Array.new(number) do
           { email: unique_email, uid: unique_uid, level: 3, state: 'active' }.tap do |user|
+            # Merge JWT as user data field.
+            # So we can use it later.
+            user.merge!(jwt: api_v2_jwt_for(user))
+
             # Issue GET /api/v2/account/balances to create user at Peatio DB.
             get('/account/balances', user: user)
           end
@@ -38,10 +42,14 @@ module Toolbox
 
       private
       def api_v2_jwt_for(user)
+        # We use this tweak to increase performance.
+        # JWT is pre-generated for user with huge lifetime.
+        return user[:jwt] if user.key?(:jwt)
+
         payload = user.slice(:email, :uid, :level, :state)
         payload.reverse_merge! \
           iat: Time.now.to_i,
-          exp: 5.minutes.from_now.to_i,
+          exp: 20.minutes.from_now.to_i,
           jti: SecureRandom.uuid,
           sub: 'session',
           iss: 'barong',

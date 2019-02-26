@@ -1,62 +1,14 @@
 require "toolbox/version"
-# require "pry-byebug"
-# require "active_support/all"
-require 'bundler'
+
+require "bundler"
 Bundler.require :default
 
 module Toolbox
   require_relative "toolbox/auditors"
   require_relative "toolbox/clients"
+  require_relative "toolbox/core_ext"
   require_relative "toolbox/error"
   require_relative "toolbox/helpers"
   require_relative "toolbox/injectors"
   require_relative "toolbox/root_command"
-end
-
-# TODO: Move Faraday to separate file.
-module Faraday
-  class Env
-    attr_reader :request_body
-  end
-
-  class Connection
-    alias original_run_request run_request
-
-    def run_request(method, url, body, headers, &block)
-      original_run_request(method, url, body, headers, &block).tap do |response|
-        response.env.instance_variable_set :@request_body, body if body
-      end
-    end
-  end
-
-  class Response
-    def assert_success!
-      return self if success?
-      raise Faraday::Error, describe
-    end
-
-    def describe
-      ["-- HTTP #{status} #{reason_phrase} --",
-       "",
-       "-- Request URL --",
-       env.url.to_s,
-       "",
-       "-- Request Method --",
-       env.method.to_s.upcase,
-       "",
-       "-- Request headers --",
-       env.request_headers.to_json,
-       "",
-       "-- Request body --",
-       env.request_body.to_s,
-       "",
-       "-- Response headers --",
-       env.response_headers.to_json,
-       "",
-       "-- Response body --",
-       env.body.to_s,
-       ""
-      ].join("\n")
-    end
-  end
 end
