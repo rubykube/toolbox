@@ -39,6 +39,7 @@ module Toolbox::Auditors
     #   12 of 200 orders created (0.69 seconds passed).
     # TODO: Order creation failures processing.
     def create_and_run_workers
+      Kernel.print "Creating #{@order.number} orders... "
       Array.new(@threads_number) do
         Thread.new do
           loop do
