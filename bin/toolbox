@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+require "clamp"
+
+$LOAD_PATH << File.join(File.dirname(__FILE__), "../lib")
+require 'toolbox'
+
+# TODO: Rewrite this.
+path = Dir.pwd[1..-1].split('/')
+TOOLBOX_ROOT = '/' + path.join('/')
+
+begin
+  Toolbox::RootCommand.run
+
+rescue Toolbox::Error => e
+  puts e
+end
