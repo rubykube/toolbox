@@ -53,14 +53,15 @@ module Toolbox::Auditors
     end
 
     def report_to_file
-      File.open(report_file_path, "w") do |f|
+      report_dir = File.join(TOOLBOX_ROOT, 'reports')
+      report_file = File.join(report_dir, @config.report_yaml)
+
+      Dir.mkdir report_dir unless Dir.exist? report_dir
+
+      File.open(report_file, 'w') do |f|
         f.puts YAML.dump(compute_report)
       end
       puts "Report output to #{report_file_path}"
-    end
-
-    def report_file_path
-      File.join(TOOLBOX_ROOT, "reports", @config.report_yaml)
     end
 
     def compute_report
