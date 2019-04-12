@@ -42,8 +42,11 @@ module Toolbox::Injectors
       end
 
       def pop
-        return nil if @queue.empty?
-        @queue.pop
+        # Use non_blocking pop.
+        @queue.pop(true)
+      rescue ThreadError
+        # Return nil in case of empty queue.
+        nil
       end
 
       def generate_order
