@@ -102,7 +102,7 @@ module Toolbox::Auditors
         'Currencies' => @currencies.map(&:upcase).join(', '),
         'Markets' => @markets.map(&:upcase).join(', '),
         'Number of simultaneous traders' =>  @traders_number,
-        'Number of orders to create' => @orders_number,
+        'Number of orders to create' => @orders.number,
         'Number of simultaneous requests' => @threads_number,
         'Order settings' => @orders.to_h,
       }
