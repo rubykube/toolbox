@@ -4,6 +4,9 @@ ENV APP_HOME=/home/toolbox
 ENV HEY_RELEASE_URL="https://storage.googleapis.com/jblabs/dist/hey_linux_v0.1.2"
 ENV DEBIAN_FRONTEND nointeractive
 
+# Enable bash completion and improve readability
+RUN chsh -s /bin/bash && echo 'source $APP_HOME/.bashrc' >> ~/.bashrc
+
 # Prepare apt and make sure the system's up-to-date
 RUN apt-get update && apt-get install -y apt-utils && apt-get upgrade -y
 
