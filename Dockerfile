@@ -1,18 +1,15 @@
-FROM ruby:2.6.2
+FROM ruby:2.6.3
 
 ENV APP_HOME=/home/toolbox
 ENV HEY_RELEASE_URL="https://storage.googleapis.com/jblabs/dist/hey_linux_v0.1.2"
 
 # Install tools for debug and development
-RUN apt update && apt install -y \
-      git less curl wget htop man vim nuttcp bash-completions liquidprompt nmap \
-      siege strace netcat tcpdump iperf3 wireshark nload apache2-utils dnsutils \
-      dnstracer darkstat dstat mariadb-client-10.1
+RUN apt-get update && apt-get install -yy \
+      git less curl wget htop man vim nmap siege strace netcat tcpdump \
+      iperf3 apache2-utils dnsutils dnstracer dstat mariadb-client-10.1 screen
 
-# Enable bash completion and improve readability
-RUN chsh -s /bin/bash \
-    && liquidprompt_activate \
-    && echo 'source /etc/profile.d/bash-completion.bash' >> ~/.bash_profile
+# Enable bash
+RUN chsh -s /bin/bash
 
 # Install hey
 RUN curl "${HEY_RELEASE_URL}" -o /usr/bin/hey

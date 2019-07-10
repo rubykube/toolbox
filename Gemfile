@@ -3,7 +3,8 @@
 
 source 'https://rubygems.org'
 
-ruby '2.6.2'
+ruby '2.6.3'
+
 gem 'activesupport', '~> 5.2', require: 'active_support/all'
 gem 'clamp', '~> 1.3.0'
 gem 'config'
